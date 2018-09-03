@@ -1,4 +1,4 @@
-# Environment Configuration
+# Setting up an environment for assert-p4
 
 * Manual installation on Ubuntu 16.04 OR
 * Use Vagrant to setup a VM in VirtualBox

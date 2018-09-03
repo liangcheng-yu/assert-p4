@@ -5,10 +5,12 @@
 
 ### Manual installation
 All necessary dependencies can be installed running `setup.sh`.
+
 Please refer to `.profile` for the location of `p4c`, `clang` and `klee` binaries.
 
 ### Using Vagrant
-To install Vagrant, refer to the [official documentation](https://google.com).
+To install Vagrant, please refer to the [official documentation](https://google.com).
+
 Please install the [vagrant-disksize plugin](https://github.com/sprotheroe/vagrant-disksize) before running `vagrant up`.
 ```
 vagrant plugin install vagrant-disksize

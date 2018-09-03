@@ -45,7 +45,7 @@ def run(node, rules):
     if rules:
         global forwardingRules
         forwardingRules = rules
-    returnString = "#define BITSLICE(x, a, b) ((x) >> (b)) & ((1 << ((a)-(b)+1)) - 1)\n#include<stdio.h>\n#include<stdint.h>\n#include<stdlib.h>\n#include<assert.h>\n\nint assert_forward = 1;\nint action_run;\n\nvoid end_assertions();\n\n"
+    returnString = "#define BITSLICE(x, a, b) ((x) >> (b)) & ((1 << ((a)-(b)+1)) - 1)\n#include<stdio.h>\n#include<stdint.h>\n#include<stdlib.h>\n\nint assert_forward = 1;\nint action_run;\n\nvoid end_assertions();\n\n"
     program = toC(node)
     returnString += globalDeclarations
     for declaration in forwardDeclarations:

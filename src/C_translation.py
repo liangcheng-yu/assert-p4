@@ -17,7 +17,7 @@ currentTable = ""
 forwardingRules = {}
 currentTableKeys = {} #keyName, (exact, lpm or ternary)
 globalDeclarations = ""
-finalAssertions = "assert_error(char msg[]) {\n\tprintf(\"Assertion Error: %s\", msg);\n\tklee_abort();\n}\n\nvoid end_assertions(){\n"
+finalAssertions = "void assert_error(char msg[]) {\n\tprintf(\"Assertion Error: %s\\n\", msg);\n\tklee_abort();\n}\n\nvoid end_assertions(){\n"
 emitHeadersAssertions = []
 extractHeadersAssertions = []
 
@@ -178,13 +178,14 @@ def Annotations(node):
             #if assert_string[1] != "":
             #    message = assert_string[1] + "\\n"
             global finalAssertions
-            finalAssertions += "\t//if(!(" + assertionResults[1] + ")) assert_error(\"" + assertionResults[1] + "\");\n"
+            finalAssertions += "\tif (!(" + assertionResults[1] + "))\n\t\tassert_error(\"" + assertionResults[1] + "\");\n"
     return returnString
 
 def assertion(assertionString, nodeID):
     returnString = ""
     logicalExpression = ""
     errorMessage = ""
+    global globalDeclarations
     if "!" == assertionString[0]:
         neg = assertion(assertionString[1:], nodeID)
         returnString += neg[0]
@@ -209,7 +210,7 @@ def assertion(assertionString, nodeID):
         left = equalityParameters[0]
         right = equalityParameters[1]
         globalVarName =  left.replace(".", "_")[:-1] + "_eq_" + right.replace(".", "_")[-1:] + "_" + str(nodeID)
-        global globalDeclarations
+        # global globalDeclarations
         globalDeclarations += "\n int " + globalVarName + ";\n"
         logicalExpression = globalVarName
         returnString += globalVarName + " = (" + left + " == " + right + ");\n\t"
@@ -218,7 +219,7 @@ def assertion(assertionString, nodeID):
         left = equalityParameters[0]
         right = equalityParameters[1]
         globalVarName =  left.replace(".", "_")[:-1] + "_le_" + right.replace(".", "_")[-1:] + "_" + str(nodeID)
-        global globalDeclarations
+        # global globalDeclarations
         globalDeclarations += "\n int " + globalVarName + ";\n"
         logicalExpression = globalVarName
         returnString += globalVarName + " = (" + left + " < " + right + ");\n\t"
@@ -226,14 +227,14 @@ def assertion(assertionString, nodeID):
         constantVariable = assertionString[assertionString.find("(")+1:assertionString.rfind(")")]
         globalVarName = "constant_" + constantVariable.replace(".", "_") + "_" + str(nodeID)
         constantType = "uint64_t"#TODO: get proper field type
-        global globalDeclarations
+        # global globalDeclarations
         globalDeclarations += "\n" + constantType + " " + globalVarName + ";\n"
         logicalExpression =  globalVarName + " == " + constantVariable
         returnString += globalVarName + " = " + constantVariable + ";"
     elif "extract" in assertionString: #TODO: assign variable to true when extract field in model
         headerToExtract = assertionString[assertionString.find("(")+1:assertionString.rfind(")")].replace(".", "_")
         globalVarName = "extract_header_" + headerToExtract
-        global globalDeclarations
+        # global globalDeclarations
         globalDeclarations += "\nint " + globalVarName + " = 0;\n"
         logicalExpression =  globalVarName
     elif "emit" in assertionString:
@@ -241,7 +242,7 @@ def assertion(assertionString, nodeID):
         headerToEmitNoHeaderStack = headerToEmit.replace("[", "").replace("]", "")
         globalVarName = "emit_header_" + headerToEmitNoHeaderStack
         emitHeadersAssertions.append(headerToEmit)
-        global globalDeclarations
+        # global globalDeclarations
         globalDeclarations += "\nint " + globalVarName + " = 0;\n"
         logicalExpression = globalVarName
     elif "forward" in assertionString:
@@ -249,7 +250,7 @@ def assertion(assertionString, nodeID):
     elif "traverse" in assertionString:
         #traverseParameter = assertionString[assertionString.find("(")+1:assertionString.rfind(")")]
         globalVarName = "traverse_" + str(nodeID)
-        global globalDeclarations
+        # global globalDeclarations
         globalDeclarations += "int " + globalVarName + " = 0;\n"
         logicalExpression = globalVarName
         #if traverseParameter:
@@ -259,7 +260,7 @@ def assertion(assertionString, nodeID):
         returnString += globalVarName + " = 1;"
     else:
         globalVarName = assertionString.replace(".", "_") + "_" + str(nodeID)
-        global globalDeclarations
+        # global globalDeclarations
         globalDeclarations += "\nint " + globalVarName + ";\n"
         returnString += globalVarName + " = (" + assertionString + " == 1);\n\t"
         logicalExpression = globalVarName
@@ -854,16 +855,17 @@ def emit(node):
             headerNameNoHeaderStack = emitAssertion.replace("[", "").replace("]", "")
             returnString += "emit_header_" + headerNameNoHeaderStack + " = " + emitAssertion + ".isValid;\n\t"
 
+    global emitPosition
     for header in headers:
         if header[0] == getHeaderType(headerName):
             for field in header[1]:
                 size = typedef[field.type.path.name].type.size if field.type.Node_Type == "Type_Name" else field.type.size
                 if hdrName.split(".")[1] in headerStackSize.keys():
                     for idx in range(headerStackSize[hdrName.split(".")[1]]):
-                        global emitPosition
+                        # global emitPosition
                         emitPosition += size
                 else:
-                    global emitPosition
+                    # global emitPosition
                     emitPosition += size
     return returnString
 

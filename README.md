@@ -32,6 +32,30 @@ klee --search=dfs --no-output --optimize output.bc
 | llvm          | 3.4       |
 | klee          | >1.3      |
 
+### Setting up an environment for assert-p4
+
+The following automated options are available:
+
+* Bash script to install dependencies on Ubuntu 16.04
+* Virtual machine setup using Vagrant
+
+Please note that both setup methods will take a while to finish.
+
+#### Bash script
+All necessary dependencies can be installed running `setup.sh`.
+
+Please refer to `.profile` for the location of `p4c`, `clang` and `klee` binaries.
+
+#### Vagrant
+To install Vagrant, please refer to the [official documentation](https://google.com).
+
+Please install the [vagrant-disksize plugin](https://github.com/sprotheroe/vagrant-disksize) before running `vagrant up`.
+```
+vagrant plugin install vagrant-disksize
+vagrant up
+```
+After logging in the VM using `vagrant ssh`, the assert-p4 files will be located under `/vagrant`.
+
 ### Experiments
 
 The experiments folder is organized into a benchmark and a case\_studies folder.
@@ -39,4 +63,3 @@ The experiments folder is organized into a benchmark and a case\_studies folder.
 There are 4 different benchmarks: Tables, Actions, Rules, and Assertions. Each one is contained in its own subfolder, which has the appropriate scripts to generate the programs, execute the experiment, and create gnuplot graphs. The gen\_parallel.py script is used to create submodels for parallelization. The parallel\_benchmark.py script can be used to execute all benchmarks with and without optimizations.
 
 Each case study folder contains the used C models and scripts to execute them. You can also find C models with constraint optimizations, submodels for parallelization, and their combination. The run\_klee.sh scripts are used to execute the single threaded models, and the parallel\_klee.sh scripts are used to run the submodels concurrently. 
-

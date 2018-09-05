@@ -27,8 +27,7 @@ sudo apt-get install -y autoconf automake libtool curl make unzip
 # p4c dependencies
 sudo apt-get install -y git automake libtool libgc-dev bison flex libfl-dev \
 	libgmp-dev libboost-dev libboost-iostreams-dev libboost-graph-dev pkg-config \
-	python python-scapy python-ipaddr python-ply tcpdump cmake \
-	doxygen graphviz texlive-full
+	python python-scapy python-ipaddr python-ply tcpdump cmake
 
 # behavioral model
 echo "Installing p4lang/behavioral-model..."

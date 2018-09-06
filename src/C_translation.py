@@ -17,7 +17,14 @@ currentTable = ""
 forwardingRules = {}
 currentTableKeys = {} #keyName, (exact, lpm or ternary)
 globalDeclarations = ""
-finalAssertions = "void assert_error(char msg[]) {\n\tprintf(\"Assertion Error: %s\\n\", msg);\n\tklee_abort();\n}\n\nvoid end_assertions(){\n"
+assertionsCount = 0 #tracking id for klee_print_once
+finalAssertions = """void assert_error(int id, char msg[]) {
+\tklee_print_once(id, msg);
+\t//klee_abort();
+}
+
+void end_assertions() {
+"""
 emitHeadersAssertions = []
 extractHeadersAssertions = []
 
@@ -178,7 +185,9 @@ def Annotations(node):
             #if assert_string[1] != "":
             #    message = assert_string[1] + "\\n"
             global finalAssertions
-            finalAssertions += "\tif (!(" + assertionResults[1] + "))\n\t\tassert_error(\"" + assertionResults[1] + "\");\n"
+            global assertionsCount
+            finalAssertions += "\tif (!({0}))\n\t\tassert_error({1}, \"Assertion error: {0}\");\n".format(assertionResults[1], assertionsCount)
+            assertionsCount += 1
     return returnString
 
 def assertion(assertionString, nodeID):

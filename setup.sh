@@ -194,7 +194,7 @@ cd ../..
 #=== KLEE ===========================
 echo "Building KLEE..."
 
-git clone --depth 1 --branch v1.3.0 https://github.com/gnmartins/klee.git
+git clone --depth 1 --branch 1.3.x https://github.com/gnmartins/klee.git
 rm -rf klee/.git
 
 BUILDDIR=`pwd`

@@ -1,3 +1,6 @@
 *.pyc
 .vagrant
 .docker
+.vscode
+*.log
+klee-out*

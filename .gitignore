@@ -4,3 +4,4 @@
 .vscode
 *.log
 klee-out*
+my-tests

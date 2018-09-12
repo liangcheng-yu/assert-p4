@@ -1,6 +1,7 @@
 *.pyc
 .vagrant
 .docker
-*.log
 .vscode
+*.log
 klee-out*
+my-tests

@@ -6,36 +6,36 @@
 #define UDP_PROTOCOL 8w0x11
 #define PAXOS_PROTOCOL 16w0x8888
 
-parser TopParser(packet_in b, out headers p, inout metadata meta, inout standard_metadata_t standard_metadata) {
+parser TopParser(packet_in b, out headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
     state start {
         transition parse_ethernet;
     }
 
     state parse_ethernet {
-        b.extract(p.ethernet);
-        transition select(p.ethernet.etherType) {
+        b.extract(hdr.ethernet);
+        transition select(hdr.ethernet.etherType) {
             ETHERTYPE_IPV4 : parse_ipv4;
         }
     }
 
     state parse_ipv4 {
-        b.extract(p.ipv4);
-        transition select(p.ipv4.protocol) {
+        b.extract(hdr.ipv4);
+        transition select(hdr.ipv4.protocol) {
             UDP_PROTOCOL : parse_udp;
             default : accept;
         }
     }
 
     state parse_udp {
-        b.extract(p.udp);
-        transition select(p.udp.dstPort) {
+        b.extract(hdr.udp);
+        transition select(hdr.udp.dstPort) {
             PAXOS_PROTOCOL : parse_paxos;
             default : accept;
         }
     }
 
     state parse_paxos {
-        b.extract(p.paxos);
+        b.extract(hdr.paxos);
         transition accept;
     }
 }

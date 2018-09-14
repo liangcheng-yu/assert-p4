@@ -4,6 +4,8 @@ import Node
 import C_translation
 import parse_forwarding_rules
 
+from os.path import splitext, basename
+
 with open(sys.argv[1]) as data_file:    
     program = json.load(data_file)
 
@@ -17,6 +19,8 @@ model = C_translation.run(Node.NodeFactory(program), forwardingRules)
 model = C_translation.post_processing(model)
 
 #Print output to file
-outFile = open("test.c", "w")
-outFile.write(model)
-outFile.close()
+p4_program_name = splitext(basename(sys.argv[1]))[0]
+assert_p4_outfile = "{}.c".format(p4_program_name)
+
+with open(assert_p4_outfile, "w") as output:
+    output.write(model)

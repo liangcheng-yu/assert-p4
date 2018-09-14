@@ -18,7 +18,7 @@ or
 
 ```
 p4c-bm2-ss filename.p4 --toJSON output.json
-python src/P4_to_C.py output.json [/path/to/commands.txt] > output.c
+python src/P4_to_C.py output.json [/path/to/commands.txt]
 clang -emit-llvm -g -c output.c
 klee --search=dfs --no-output --optimize output.bc
 ```

@@ -19,9 +19,9 @@ p4c-bm2-ss $1 --toJSON $program.json > /dev/null
 
 echo "Translating to C code..."
 if [ -z "$2" ]; then
-    python ./src/P4_to_C.py $program.json > $program.c
+    python ./src/P4_to_C.py $program.json
 else
-    python ./src/P4_to_C.py $program.json $2 > $program.c
+    python ./src/P4_to_C.py $program.json $2
 fi
 
 echo "Creating LLVM representation for KLEE..."

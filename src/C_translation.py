@@ -1,6 +1,6 @@
 import re
 import uuid
-# from aux import eprint
+# from helper import eprint
 
 headers = []
 structFieldsHeaderTypes = {} #structField, structFieldType

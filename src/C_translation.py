@@ -471,6 +471,7 @@ def P4Action(node):
     return "// Action\nvoid " + actionName + "(" + parameters + ") {\n\t" + actionData + toC(node.body) + "\n}\n\n"
 
 def P4Table(node):
+    #print "\nTable " + str(node.name)
     tableIDs[node.name] = node.Node_ID
     global currentTable
     currentTable = node.name
@@ -728,25 +729,32 @@ def actionListWithRules(node):
     #forwardingRules
     returnString = ""
     defaultRule = ""
-    for rule in forwardingRules[currentTable]:
-        if rule[0] == "table_add":
-            match = ""
-            for idx, key in enumerate(currentTableKeys):
-                if currentTableKeys[key] == "exact":
-                    match += key + " == " + convertCommandValue(rule[2][idx]) + "&& "
-            match = match[:-3]
-            arguments = ""
-            for arg in rule[3]:
-                arguments += convertCommandValue(arg) + ", "
-            arguments = arguments[:-2]
-            returnString += "\tif(" + match + "){\n\t\t" + getActionFullName(rule[1]) + "(" + arguments + ");\n\t} else"
-        elif rule[0] == "table_set_default":
-            defaultRule = " {\n\t\t" + getActionFullName(rule[1]) + "();\n\t}"
-    if defaultRule != "":
-        returnString += defaultRule
+
+    if currentTable in forwardingRules.keys():
+        for rule in forwardingRules[currentTable]:
+            if rule[0] == "table_add":
+                match = ""
+                for idx, key in enumerate(currentTableKeys):
+                    if currentTableKeys[key] == "exact":
+                        match += key + " == " + convertCommandValue(rule[2][idx]) + "&& "
+                match = match[:-3]
+                arguments = ""
+                for arg in rule[3]:
+                    arguments += convertCommandValue(arg) + ", "
+                arguments = arguments[:-2]
+                returnString += "\tif(" + match + "){\n\t\t" + getActionFullName(rule[1]) + "(" + arguments + ");\n\t} else"
+            elif rule[0] == "table_set_default":
+                defaultRule = " {\n\t\t" + getActionFullName(rule[1]) + "();\n\t}"
+        if defaultRule != "":
+            returnString += defaultRule
+        else:
+            returnString = returnString[:-5]
+        #returnString += str(forwardingRules[currentTable])
     else:
-        returnString = returnString[:-5]
-    #returnString += str(forwardingRules[currentTable])
+        #TODO-v2: Deploy case where there is no rule for a given table
+        # (check if this else branch is really needed or if it is possible to deal with this case when processing the "default_action" key from a P4 program)
+        pass
+
     return returnString
 
 def convertCommandValue(arg):

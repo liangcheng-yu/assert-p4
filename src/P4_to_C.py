@@ -14,4 +14,9 @@ else:
     forwardingRules = None
 
 model = C_translation.run(Node.NodeFactory(program), forwardingRules)
-print C_translation.post_processing(model)
+model = C_translation.post_processing(model)
+
+#Print output to file
+outFile = open("test.c", "w")
+outFile.write(model)
+outFile.close()

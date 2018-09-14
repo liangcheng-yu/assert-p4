@@ -1,5 +1,6 @@
 import re
 import uuid
+# from aux import eprint
 
 headers = []
 structFieldsHeaderTypes = {} #structField, structFieldType
@@ -444,7 +445,13 @@ def MethodCallExpression(node):
     elif hasattr(node.method, 'path') and node.method.path.name == "digest":
         pass
     else:
-        returnString = toC(node.method) + "();"
+        # Special treatment for "isValid" calls
+        # isValid is modeled as an uint8_t instead of a function!
+        if hasattr(node.method, 'member') and node.method.member == "isValid":
+            returnString = toC(node.method)
+        else:
+            returnString = toC(node.method) + "();"
+
     return returnString
 
 def MethodCallStatement(node):

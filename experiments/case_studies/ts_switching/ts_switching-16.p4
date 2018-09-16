@@ -106,7 +106,8 @@ control ingress(inout headers hdr, inout metadata meta, inout standard_metadata_
         my_direct_counter.count();
         mark_to_drop();
     }
-    @assert("if(forward && hdr.ipv4.dstAddr == 4009820417, !(hdr.rtp.timestamp == 3 || hdr.rtp.timestamp == 4))")
+    //TODO-v2: Process case where assertions are inserted before table declarations
+    //@assert("if(forward && hdr.ipv4.dstAddr == 4009820417, !(hdr.rtp.timestamp == 3 || hdr.rtp.timestamp == 4))")
     table schedule_table {
         actions = {
             take_video_0;
@@ -119,7 +120,9 @@ control ingress(inout headers hdr, inout metadata meta, inout standard_metadata_
         size = 16384;
         @name(".my_direct_counter") counters = direct_counter(CounterType.bytes);
     }
-    apply {
+    apply 
+    @assert("if(forward && hdr.ipv4.dstAddr == 4009820417, !(hdr.rtp.timestamp == 3 || hdr.rtp.timestamp == 4))")
+    {
         schedule_table.apply();
     }
 }

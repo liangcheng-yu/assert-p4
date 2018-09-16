@@ -181,6 +181,7 @@ def Annotations(node):
     for annotation in node.annotations.vec:
         if annotation.name == "assert":
             assert_string = annotation.expr.vec[0].value
+            print assert_string
             assertionResults = assertion(assert_string, annotation.expr.vec[0].Node_ID)
             returnString += assertionResults[0]
             #if assert_string[1] != "":

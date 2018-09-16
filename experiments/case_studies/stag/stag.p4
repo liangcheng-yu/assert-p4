@@ -157,7 +157,8 @@ control ingress(inout headers hdr, inout metadata meta, inout standard_metadata_
       default_action = NoAction;
     }    
 
-    @assert("if(standard_metadata.ingress_port == 1 && hdr.ipv4.dstAddr == 167772162, !forward)")
+    //TODO-v2: Process case where assertions are inserted before table declarations
+    //@assert("if(standard_metadata.ingress_port == 1 && hdr.ipv4.dstAddr == 167772162, !forward)")
     table color_check {
       key = {
         meta.local_md.dst_port_color: exact;
@@ -174,7 +175,7 @@ control ingress(inout headers hdr, inout metadata meta, inout standard_metadata_
         }
 
         switch(forward.apply().action_run){
-          set_local_dest: { color_check.apply(); }
+          set_local_dest: @assert("if(standard_metadata.ingress_port == 1 && hdr.ipv4.dstAddr == 167772162, !forward)") { color_check.apply(); }
 	}
     }
 }

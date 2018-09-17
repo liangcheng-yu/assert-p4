@@ -12,7 +12,7 @@ typedef = {} #typedefName, typedefNode
 actionIDs = {} #actionName, nodeID
 tableIDs = {} #tableName, nodeID
 declarationTypes = {} #instanceName, instanceType
-forwardDeclarations = set()
+forwardDeclarations = []
 package = ""
 currentTable = "" 
 forwardingRules = {}
@@ -57,7 +57,7 @@ def run(node, rules):
     program = toC(node)
     returnString += globalDeclarations
     for declaration in forwardDeclarations:
-        returnString += "\nvoid " + declaration + "();"
+        returnString += "\nvoid " + declaration[0] + "(" + declaration[1] + ");"
     returnString += "\n\n" + program + finalAssertions + "}\n\n"
     return returnString
     
@@ -181,7 +181,6 @@ def Annotations(node):
     for annotation in node.annotations.vec:
         if annotation.name == "assert":
             assert_string = annotation.expr.vec[0].value
-            print assert_string
             assertionResults = assertion(assert_string, annotation.expr.vec[0].Node_ID)
             returnString += assertionResults[0]
             #if assert_string[1] != "":
@@ -481,9 +480,13 @@ def P4Action(node):
                 else:
                     actionData += toC(param.type) + " " + param.name + ";\n"
                 actionData += klee_make_symbolic(param.name)
-    forwardDeclarations.add(node.name + "_" + str(node.Node_ID))
+
+    #Remove comma after last parameter
     if parameters != "":
         parameters = parameters[:-2]
+
+    forwardDeclarations.append([node.name + "_" + str(node.Node_ID), parameters])
+
     actionName = node.name + "_" + str(node.Node_ID)
     return "// Action\nvoid " + actionName + "(" + parameters + ") {\n\t" + actionData + toC(node.body) + "\n}\n\n"
 
@@ -492,7 +495,7 @@ def P4Table(node):
     tableIDs[node.name] = node.Node_ID
     global currentTable
     currentTable = node.name
-    forwardDeclarations.add(node.name + "_" + str(node.Node_ID))
+    forwardDeclarations.append([node.name + "_" + str(node.Node_ID), ""])
     tableBody = toC(node.properties)
     if forwardingRules:
         tableBody = actionListWithRules(node)
@@ -732,7 +735,7 @@ def ParserState(node):
             expression += "();" #it is not a select, thus it is a direct parser state transition
     if node.name == "reject":
         expression += dropPacketCode()
-    forwardDeclarations.add(node.name)
+    forwardDeclarations.append([node.name, ""])
     parser = "void " + node.name + "() {\n" + components + "\t" + expression + "\n}\n\n"
     return parser
 

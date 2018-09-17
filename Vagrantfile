@@ -11,5 +11,5 @@ Vagrant.configure("2") do |config|
 	end
 	
 	config.vm.provision :shell, path: "setup.sh", keep_color: true, privileged: false
-	config.vm.provision "file", source: ".profile", destination: "~/.profile"
+	#config.vm.provision "file", source: ".profile", destination: "~/.profile"
 end

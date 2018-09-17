@@ -2,6 +2,8 @@
 # Setup script for assert-p4
 # author: Gabriel Martins <gabrielnmartins@gmail.com>
 
+MAIN_INSTALL_DIR=$(pwd)
+
 sudo apt-get update
 sudo apt-get install -y git vim
 
@@ -221,7 +223,22 @@ cd ..
 #========================================================================================
 echo "#==============================================================================="
 
-echo "All assert-p4 dependencies have been installed."
+echo -e "\n" >> ~/.profile
+echo "# assert-p4:" >> ~/.profile
+echo "# p4c binaries" >> ~/.profile
+echo "P4C_BUILD_DIR="$MAIN_INSTALL_DIR/p4c/build"" >> ~/.profile
+echo "" >> ~/.profile
+echo "# klee binaries" >> ~/.profile
+echo "KLEE_BIN_DIR="$MAIN_INSTALL_DIR/klee-build/klee/Release+Asserts/bin"" >> ~/.profile
+echo "LLVM_BIN_DIR="$MAIN_INSTALL_DIR/klee-build/llvm/Release/bin"" >> ~/.profile
+echo "" >> ~/.profile
+echo "PATH="\$P4C_BUILD_DIR:\$KLEE_BIN_DIR:\$LLVM_BIN_DIR:\$HOME/bin:\$HOME/.local/bin:\$PATH"" >> ~/.profile
+
+echo "All assert-p4 dependencies have been compiled."
+echo "The build directories have been added to your PATH in ~/.profile"
+echo -e "\tP4C_BUILD_DIR=\"$MAIN_INSTALL_DIR/p4c/build\""
+echo -e "\tKLEE_BIN_DIR=\"$MAIN_INSTALL_DIR/klee-build/klee/Release+Asserts/bin\""
+echo -e "\tLLVM_BIN_DIR=\"$MAIN_INSTALL_DIR/klee-build/llvm/Release/bin\""
 echo "For any suggestions, please contact <gabrielnmartins@gmail.com>."
 
 echo "#==============================================================================="

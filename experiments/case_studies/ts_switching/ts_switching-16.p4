@@ -115,7 +115,9 @@ control ingress(inout headers hdr, inout metadata meta, inout standard_metadata_
         }
         key = {
             hdr.ipv4.dstAddr : exact;
-            hdr.rtp.timestamp: range;
+            //ASSERT-P4: Modified to use a supported match type
+            //hdr.rtp.timestamp: range;
+            hdr.rtp.timestamp: exact;
         }
         size = 16384;
         @name(".my_direct_counter") counters = direct_counter(CounterType.bytes);

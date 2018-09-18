@@ -151,7 +151,9 @@ control ingress(inout headers hdr, inout metadata meta, inout standard_metadata_
     }
 
     table forward {
-      key = {hdr.ipv4.dstAddr: ternary;}
+      //ASSERT-P4: Modified to use a supported match type
+      //key = {hdr.ipv4.dstAddr: ternary;}
+      key = {hdr.ipv4.dstAddr: exact;}
       actions = { set_local_dest; set_remote_dest; core_pass_through; NoAction;}
       size = 1024;
       default_action = NoAction;

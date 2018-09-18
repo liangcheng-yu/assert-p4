@@ -64,6 +64,15 @@ This version includes a new function called `klee_print_once` which is used to d
 
 If you prefer to use a different version of KLEE, adjustments in the translated C model will be necessary in order to properly display the verification results.
 
+## Features not supported
+
+Some features from the P4 language are not supported by `assert-p4` yet. 
+We intend to improve and extend the functionalities of this tool.
+
+The features currently not supported by `assert-p4` are:
+* table annotations
+* ternary matches
+
 ## Experiments
 
 The experiments folder is organized into a benchmark and a case\_studies folder.

@@ -756,7 +756,7 @@ def actionListWithRules(node):
                 match = ""
                 for idx, key in enumerate(currentTableKeys):
                     if currentTableKeys[key] == "exact":
-                        match += key + " == " + convertCommandValue(rule[2][idx]) + "&& "
+                        match += key + " == " + convertCommandValue(rule[2][idx]) + " && "
                     elif currentTableKeys[key] == "ternary":
                         #TODO-v2: Model other match types (i.e., ternary, lpm, etc) as well as rule priorities
                         pass
@@ -782,7 +782,6 @@ def actionListWithRules(node):
 
 def convertCommandValue(arg):
     if ":" in arg:
-        print arg
         return str(int(arg.translate(None, ":"), 16))
     elif "." in arg: #Convert IP to uint_32
         octets = arg.split(".")

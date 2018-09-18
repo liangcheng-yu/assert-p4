@@ -89,7 +89,7 @@ control egress(inout headers hdr, inout metadata meta, inout standard_metadata_t
 }
 
 control ingress(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
-    @name(".my_direct_counter") direct_counter(CounterType.bytes) my_direct_counter;
+    //@name(".my_direct_counter") direct_counter(CounterType.bytes) my_direct_counter;
     @name(".take_video") action take_video(bit<32> dst_ip) {
         standard_metadata.egress_spec = 9w1;
         hdr.ipv4.dstAddr = dst_ip;
@@ -97,21 +97,21 @@ control ingress(inout headers hdr, inout metadata meta, inout standard_metadata_
     @name("._drop") action _drop() {
         mark_to_drop();
     }
-    @name(".take_video") action take_video_0(bit<32> dst_ip) {
+    /*@name(".take_video_0") action take_video_0(bit<32> dst_ip) {
         my_direct_counter.count();
         standard_metadata.egress_spec = 9w1;
         hdr.ipv4.dstAddr = dst_ip;
-    }
-    @name("._drop") action _drop_0() {
+    }*/
+    /*@name("._drop_0") action _drop_0() {
         my_direct_counter.count();
         mark_to_drop();
-    }
+    }*/
     //TODO-v2: Process case where assertions are inserted before table declarations
     //@assert("if(forward && hdr.ipv4.dstAddr == 4009820417, !(hdr.rtp.timestamp == 3 || hdr.rtp.timestamp == 4))")
     table schedule_table {
         actions = {
-            take_video_0;
-            _drop_0;
+            take_video;
+            _drop;
         }
         key = {
             hdr.ipv4.dstAddr : exact;

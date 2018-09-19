@@ -8,7 +8,7 @@ Tomas G. Edwards and Nick Ciarleglio. 2017. Timestamp-Aware RTP Video Switching 
 
 | Assertion | Property |
 | --------- | -------- |
-| if(forward && hdr.ipv4.dstAddr == 4009820417, !(hdr.rtp.timestamp == 3 || hdr.rtp.timestamp == 4)) | TODO: |
+| if(forward && hdr.ipv4.dstAddr == 4009820417, !(hdr.rtp.timestamp == 3 || hdr.rtp.timestamp == 4)) | <> |
 
 ### Verifying Timestamp switching
 

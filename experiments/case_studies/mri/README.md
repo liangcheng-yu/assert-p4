@@ -8,7 +8,7 @@ The P4.org language consortium. 2017. MRI Exercise. https://github.com/p4lang/tu
 
 | Assertion | Property |
 | --------- | -------- |
-| TODO: | TODO: |
+| <> | <> |
 
 ### Verifying MRI
 
@@ -28,4 +28,4 @@ klee --search=dfs --no-output --optimize mri.bc
 
 #### Expected output
 
-TODO:
+<>

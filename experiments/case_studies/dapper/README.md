@@ -9,7 +9,7 @@ Mojgan Ghasemi, Theophilus Benson, and Jennifer Rexford. 2017. Dapper: Data Plan
 | Assertion | Property |
 | --------- | -------- |
 | if(hdr.tcp.ack, traverse<sup>1</sup>) | Load flow registers when is Ack packet |
-| if(meta.stats_metadata.dupack < 3, !traverse) | TODO: |
+| if(meta.stats_metadata.dupack < 3, !traverse) | <> |
 | if(hdr.ipv4.ttl == 0, !forward) | Don't forward IPv4 packets if the TTL field is zero |
 | constant(hdr.tcp.dstPort)<sup>2</sup> | TCP destination port does not change |
 

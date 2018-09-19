@@ -101,7 +101,7 @@ The currently unsupported features are:
 * table annotations
 * ternary matches
 * range matches
-* _extern_ elements *(WORDING)*
+* extern elements
 
 ## Contact information
 

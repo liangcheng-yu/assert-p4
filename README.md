@@ -77,14 +77,9 @@ bash assert-p4.sh /path/to/program.p4 [/path/to/commands.txt]
 
 ## Experiments
 
-Navigating to `experiments/case_studies`, there is a folder for each case studied.
+Inside the `experiments/case_studies` folder there are examples of programs verified with assert-p4.
 
-Inside each folder, you will find:
-* an annotated P4 program
-* the JSON representation generated with `p4c-bm2-ss`
-* the translated C model
-
-Along with these files, documentation is avaiable describing the software, the assertions annotated within the program, and the expected output of the verification process.
+For each case study, there is an annotated P4 program and a README.md file, which documents the meaning of each annotated assertion, the steps to verify the program, and the expected output of assert-p4.
 
 ## Ongoing work
 

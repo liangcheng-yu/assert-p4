@@ -1,8 +1,8 @@
 #!/usr/bin/env python2
 
 # TODO: add processing of --validate and --keep-files
-# validate => dont perform symbolic execution, just create C model and commands.txt
-# keep-files => if not set, remove klee-* and *.json files
+#   validate => dont perform symbolic execution, just create C model and commands.txt
+#   keep-files => if not set, remove klee-* and *.json files
 
 import argparse
 import time
@@ -18,8 +18,8 @@ parser.add_argument('commands', type=str, help='path to dataplane commands', nar
 args = parser.parse_args()
 
 p4file = args.p4file
-validate = args.validate
 commands = args.commands
+# validate = args.validate
 # cleanup = not args.keep_files
 
 basename = path.basename(p4file)
@@ -27,6 +27,7 @@ p4filename = path.splitext(basename)[0]
 
 start = time.time()
 
+# TODO: treat errors inside inner calls
 with open(devnull, 'w') as devnull:
     # calling p4c-bm2-ss
     print('Generating {}.json...'.format(p4filename))

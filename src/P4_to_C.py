@@ -6,21 +6,33 @@ import parse_forwarding_rules
 
 from os.path import splitext, basename
 
-with open(sys.argv[1]) as data_file:    
-    program = json.load(data_file)
+def run(p4_json, commands=None, outfile=None):
+    with open(p4_json) as data_file:    
+        program = json.load(data_file)
 
-forwardingRulesProvided = (len(sys.argv) > 2)
-if forwardingRulesProvided:
-    forwardingRules = parse_forwarding_rules.parse(sys.argv[2])
-else:
-    forwardingRules = None
+    if commands != None:
+        forwardingRules = parse_forwarding_rules.parse(commands)
+    else:
+        forwardingRules = None
 
-model = C_translation.run(Node.NodeFactory(program), forwardingRules)
-model = C_translation.post_processing(model)
+    model = C_translation.run(Node.NodeFactory(program), forwardingRules)
+    model = C_translation.post_processing(model)
 
-#Print output to file
-p4_program_name = splitext(basename(sys.argv[1]))[0]
-assert_p4_outfile = "{}.c".format(p4_program_name)
+    #Print output to file
+    if outfile == None:
+        p4_program_name = splitext(basename(p4_json))[0]
+        assert_p4_outfile = "{}.c".format(p4_program_name)
+    else:
+        assert_p4_outfile = outfile
 
-with open(assert_p4_outfile, "w") as output:
-    output.write(model)
+    with open(assert_p4_outfile, "w") as output:
+        output.write(model)
+
+def main():
+    if len(sys.argv) > 2:
+        run(sys.argv[1], sys.argv[2])
+    else:
+        run(sys.argv[1])
+
+if __name__ == '__main__':
+    main()

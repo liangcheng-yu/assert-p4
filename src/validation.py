@@ -117,6 +117,10 @@ class Validator:
                     if '//Extract ' in lines[line]:
                         self.place_hdr_extraction(lines, line)
 
+                    if 'klee_print_once' in lines[line]:
+                        lines[line] = '// {}'.format(lines[line])
+                        lines.insert(line+1, '\tprintf("%s\\n", msg);\n')
+
                     if not packet_inserted:
                         # comment out 'klee_make_symbolic' calls
                         if 'klee_make_symbolic' in lines[line]:
@@ -131,6 +135,7 @@ class Validator:
                             c_model.write('\t// [VALIDATION]\n')
                             for validation_line in validation_lines:
                                 c_model.write(validation_line)
+                            c_model.write('\n')
                             packet_inserted = True
                     
                     c_model.write(lines[line])
@@ -218,7 +223,7 @@ class Validator:
 
         # insert line to call header extractor function
         caller_name = 'v_set_packet_fields_{}'.format(hdr_name)
-        lines.insert(pos+1, '\t//{}(); // [VALIDATION]\n'.format(caller_name))
+        lines.insert(pos+1, '\t{}(); // [VALIDATION]\n\n'.format(caller_name))
 
         # no need to redefine the header extractor funcion
         if hdr_name in self.hdr_extractors: return
@@ -266,21 +271,17 @@ class Validator:
 
         # packet parser function
         c_model.write('uint64_t v_get_value_from_packet(uint64_t n_bits) {\n')
-        c_model.write('\treturn 0;\n')
-        '''
-        uint64_t v_get_value_from_packet(uint64_t n_bits) {
-	char* start = &v_input_packet[v_input_packet_offset];
-	uint64_t count = 0;
-	uint64_t result = 0;
-	while (count < n_bits) {
-		result <<= 1;
-		if (*start++ == '1') result ^= 1;
-		count++;
-		v_input_packet_offset++;
-	}
-	return result;
-}
-'''
+        c_model.write('\tchar* start = &v_input_packet[v_input_packet_offset];\n')
+        c_model.write('\tuint64_t count = 0;\n')
+        c_model.write('\tuint64_t result = 0;\n')
+        c_model.write('\twhile (count < n_bits) {\n')
+        c_model.write('\t\tif (v_input_packet_offset >= strlen(v_input_packet)) break;\n')
+    	c_model.write('\t\tresult <<= 1;\n')
+        c_model.write('\t\tif (*start++ == \'1\') result ^= 1;\n')
+    	c_model.write('\t\tcount++;\n')
+    	c_model.write('\t\tv_input_packet_offset++;\n')
+        c_model.write('\t}\n')
+        c_model.write('\treturn result;\n')
         c_model.write('}\n\n')
 
         # header extraction functions

@@ -6,7 +6,7 @@ from P4_to_C import run as p4_to_c
 
 MAX_TEST_CASES = 10
 P4PKTGEN_OUTFILE = 'test-cases.json'
-ASSERTP4_JSON_FILE = 'json/stag.json'
+ASSERTP4_JSON_FILE = 'stag-assertp4.json'
 
 def hexchar_to_binstr(hexchar):
     return '{0:04b}'.format(int(hexchar, 16))
@@ -23,6 +23,7 @@ class Validator:
         self.p4_program_name = path.splitext(path.basename(self.assertp4_in_json))[0]
         self.structs = {}
         self.hdr_extractors = {}
+        self.hdr_emitters = {}
 
     def run(self):
         self.parse_p4pktgen_output()
@@ -111,12 +112,21 @@ class Validator:
                 
                 line = 0
                 while line < len(lines):
+                    # parse each header field for future processing
                     if 'typedef struct {' in lines[line]:
                         self.parse_struct(lines, line)
 
+                    # create functions to fill header with information from input packets
                     if '//Extract ' in lines[line]:
                         self.place_hdr_extraction(lines, line)
 
+                    # create functions to "emit" output packet
+                    if '//Emit ' in lines[line]:
+                        self.place_hdr_emitter(lines, line)
+
+                    # TODO: place function to print output packet
+
+                    # comment out unnecessary klee calls
                     if 'klee_print_once' in lines[line]:
                         lines[line] = '// {}'.format(lines[line])
                         lines.insert(line+1, '\tprintf("%s\\n", msg);\n')
@@ -214,7 +224,7 @@ class Validator:
             lines of the C program
 
         pos : integer
-            index of `lines` where '// Extract [...]' line is located    
+            index of `lines` where '//Extract [...]' line is located    
         '''
         # '//Extract hdr.<hdr_name>'
         tokens = lines[pos].split()
@@ -251,6 +261,56 @@ class Validator:
         function += '}'
         self.hdr_extractors[hdr_name] = definition, function
 
+    def place_hdr_emitter(self, lines, pos):
+        '''
+        Place the C functions to "emit" the output packet after processing the input 
+        packet
+
+        Parameters
+        ----------
+        lines : string array
+            lines of the C program
+
+        pos : integer
+            index of `lines` where '//Emit [...]' line is located    
+        '''
+        # '//Emit hdr.<hdr_name>'
+        tokens = lines[pos].split()
+        hdr_variable = tokens[1]
+        _, hdr_name = hdr_variable.split('.')
+
+        # insert line to call header emitter function
+        caller_name = 'v_emit_header_{}'.format(hdr_name)
+        lines.insert(pos+1, '\t{}(); // [VALIDATION]\n\n'.format(caller_name))
+
+        # no need to redefine the header emitter funcion
+        if hdr_name in self.hdr_emitters: return
+        
+        # gets the type of the header defined as `hdr_name`
+        hdr_type = next((hdr for hdr in self.structs['headers'] \
+            if hdr['name'] == hdr_name))['type']
+
+        header_fields = self.structs[hdr_type]
+
+        # defining the function that will set the header values on the output packet
+        definition = 'void {}()'.format(caller_name)
+        function = '{} {}\n'.format(definition, '{')
+        function += '\tif (hdr.{}.isValid != 1) return;\n\n'.format(hdr_name)
+
+        # TODO: create logic
+        # for i in range(len(header_fields)):
+        #     field = header_fields[i]
+        #     if field['name'] == 'isValid': continue
+
+        #     emitter = '\thdr.{}.{} = v_add_value_to_packet({} {});\n'.format(
+        #         hdr_name, field['name'], '(uint64_t)', field['bitsize']
+        #     )
+
+        #     function += emitter
+
+        function += '}'
+        self.hdr_emitters[hdr_name] = definition, function
+  
     def emit_validation_functions(self, c_model, packet):
         '''
         Writes into the C model the helper functions for test packet processing
@@ -268,6 +328,7 @@ class Validator:
         # helper variables
         c_model.write('char* v_input_packet = "{}";\n'.format(packet['packet_binstr']))
         c_model.write('uint64_t v_input_packet_offset = 0;\n\n')
+        # TODO: packet emitting variables
 
         # packet parser function
         c_model.write('uint64_t v_get_value_from_packet(uint64_t n_bits) {\n')
@@ -288,6 +349,12 @@ class Validator:
         for function in self.hdr_extractors.values():
             c_model.write('{}\n\n'.format(function[1]))
 
+        # header emitting functions
+        for function in self.hdr_emitters.values():
+            c_model.write('{}\n\n'.format(function[1]))
+
+        # TODO: output packet printer function
+
     def emit_validation_h(self):
         '''
         Creates a file called 'validation.h' which contain the definition of helper 
@@ -297,6 +364,8 @@ class Validator:
             h.write('#include<stdint.h>\n\n')
             h.write('uint64_t v_get_value_from_packet(uint64_t n_bits);\n')
             for function in self.hdr_extractors.values():
+                h.write('{};\n'.format(function[0]))
+            for function in self.hdr_emitters.values():
                 h.write('{};\n'.format(function[0]))
             h.close()
 

@@ -428,7 +428,8 @@ def MethodCallExpression(node):
         returnString +=  "//Extern: " + toC(node.method)
     #verify method
     elif hasattr(node.method, 'path') and node.method.path.name == "verify":
-        returnString += "if(!(" + toC(node.arguments.vec[0]) + ")) { exit(1); }"
+        returnString += "if(!(" + toC(node.arguments.vec[0]) + ")) {\n"
+        returnString += "\t\tend_assertions();\n\t\texit(1);\n\t}\n"
      #SetValid method
     elif hasattr(node.method, 'member') and node.method.member == "setValid":
         returnString += toC(node.method.expr) + ".isValid = 1;"

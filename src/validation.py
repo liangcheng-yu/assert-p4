@@ -124,7 +124,9 @@ class Validator:
                     if '//Emit ' in lines[line]:
                         self.place_hdr_emitter(lines, line)
 
-                    # TODO: place function to print output packet
+                    # place function to print output packet
+                    if 'end_assertions();' in lines[line] and 'void' not in lines[line]:
+                        lines.insert(line+1, '\tv_print_output(); // [VALIDATION]\n')
 
                     # comment out unnecessary klee calls
                     if 'klee_print_once' in lines[line]:
@@ -297,16 +299,15 @@ class Validator:
         function = '{} {}\n'.format(definition, '{')
         function += '\tif (hdr.{}.isValid != 1) return;\n\n'.format(hdr_name)
 
-        # TODO: create logic
-        # for i in range(len(header_fields)):
-        #     field = header_fields[i]
-        #     if field['name'] == 'isValid': continue
+        for i in range(len(header_fields)):
+            field = header_fields[i]
+            if field['name'] == 'isValid': continue
 
-        #     emitter = '\thdr.{}.{} = v_add_value_to_packet({} {});\n'.format(
-        #         hdr_name, field['name'], '(uint64_t)', field['bitsize']
-        #     )
+            emitter = '\tv_add_to_output_packet({0} hdr.{1}.{2}, {0} {3});\n'.format(
+                '(uint64_t)', hdr_name, field['name'], field['bitsize']
+            )
 
-        #     function += emitter
+            function += emitter
 
         function += '}'
         self.hdr_emitters[hdr_name] = definition, function
@@ -328,7 +329,8 @@ class Validator:
         # helper variables
         c_model.write('char* v_input_packet = "{}";\n'.format(packet['packet_binstr']))
         c_model.write('uint64_t v_input_packet_offset = 0;\n\n')
-        # TODO: packet emitting variables
+        c_model.write('char* v_output_packet = NULL;\n')
+        c_model.write('uint64_t v_output_packet_size_bits = 0;\n\n')
 
         # packet parser function
         c_model.write('uint64_t v_get_value_from_packet(uint64_t n_bits) {\n')
@@ -345,6 +347,26 @@ class Validator:
         c_model.write('\treturn result;\n')
         c_model.write('}\n\n')
 
+        # packet emitter function
+        c_model.write('void v_add_to_output_packet(uint64_t value, uint64_t n_bits) {\n')
+        c_model.write('\tif (v_output_packet == NULL)\n') 
+        c_model.write('\t\tv_output_packet = (char*) calloc(1, sizeof(hdr));\n')
+        c_model.write('\n\tchar binstr[n_bits];\n')
+        c_model.write('\tfor (int i = n_bits-1; i >= 0; --i) {\n')
+        c_model.write('\t\tbinstr[i] = value & 0x1? \'1\' : \'0\';\n')
+        c_model.write('\t\tvalue >>= 1;\n')
+        c_model.write('\t}\n')
+        c_model.write('\tstrncpy(v_output_packet+v_output_packet_size_bits, binstr, n_bits);\n')
+        c_model.write('\tv_output_packet_size_bits += n_bits;\n')
+        c_model.write('}\n\n')
+
+        # output packet printer function
+        c_model.write('void v_print_output() {\n')
+        c_model.write('\tint64_t p = assert_forward? standard_metadata.egress_spec : -1;\n')
+        c_model.write('\tfprintf(stderr, "egress_spec: %ld\\n", p);\n')
+        c_model.write('\tfprintf(stderr, "packet: %s\\n", v_output_packet);\n')
+        c_model.write('}\n\n')
+
         # header extraction functions
         for function in self.hdr_extractors.values():
             c_model.write('{}\n\n'.format(function[1]))
@@ -352,8 +374,6 @@ class Validator:
         # header emitting functions
         for function in self.hdr_emitters.values():
             c_model.write('{}\n\n'.format(function[1]))
-
-        # TODO: output packet printer function
 
     def emit_validation_h(self):
         '''
@@ -363,6 +383,8 @@ class Validator:
         with open('validation.h', 'w') as h:
             h.write('#include<stdint.h>\n\n')
             h.write('uint64_t v_get_value_from_packet(uint64_t n_bits);\n')
+            h.write('void v_add_to_output_packet(uint64_t value, uint64_t n_bits);\n')
+            h.write('void v_print_output();\n')
             for function in self.hdr_extractors.values():
                 h.write('{};\n'.format(function[0]))
             for function in self.hdr_emitters.values():

@@ -1,23 +1,58 @@
 #!/usr/bin/env python2
 
+import logging
+logging.getLogger('scapy.runtime').setLevel(logging.ERROR)
+
+import threading
+
 from json import load as load_json
-from os import path
+from os import path, devnull
+from subprocess import call, Popen, PIPE, STDOUT
+from time import sleep
+from scapy.all import wrpcap, rdpcap, sendp, sniff
 from P4_to_C import run as p4_to_c
 
+# ==== Constants =========================================================================
+
+SNIFFING_TIMEOUT_S = 0.5
 MAX_TEST_CASES = 10
 P4PKTGEN_OUTFILE = 'test-cases.json'
-ASSERTP4_JSON_FILE = 'stag-assertp4.json'
+P4PKTGEN_PCAP = 'test.pcap'
+P4PKTGEN_INFILE = 'ts-p4pktgen.json'
+ASSERTP4_JSON_FILE = 'ts.json'
+
+# ==== Helper functions ==================================================================
 
 def hexchar_to_binstr(hexchar):
     return '{0:04b}'.format(int(hexchar, 16))
 
+def pkt_to_binstr(pkt):
+    p = str(pkt)
+    l = len(p)
+    return bin(int(p.encode('hex'), 16))[2:].zfill(l*4)
+
+class Bmv2Sniffer(threading.Thread):
+    def __init__(self, port, iface):
+        self.port = port
+        self.iface = iface
+        self.capture = [None, None]
+        threading.Thread.__init__(self)
+    
+    def run(self):
+        if self.iface != None:
+            self.capture = sniff(iface=self.iface, timeout=SNIFFING_TIMEOUT_S)
+
+# ========================================================================================
+
 class Validator:
 
     def __init__(self):
-        self.p4pktgen_in_json = ''
+        self.p4pktgen_in_json = P4PKTGEN_INFILE
         self.assertp4_in_json = ASSERTP4_JSON_FILE
         self.p4pktgen_outfile = P4PKTGEN_OUTFILE
+        self.p4pktgen_pcap = P4PKTGEN_PCAP
         self.max_test_cases = MAX_TEST_CASES
+        self.bmv2_log = 'bmv2log.txt'
 
         self.test_cases = []
         self.p4_program_name = path.splitext(path.basename(self.assertp4_in_json))[0]
@@ -29,6 +64,9 @@ class Validator:
         self.parse_p4pktgen_output()
         self.generate_commands_txt()
         self.generate_c_models()
+        self.run_c_models()
+        self.run_bmv2_tests()
+        # TODO: compare outputs (parse bmv2 log for drops...)
 
     def parse_p4pktgen_output(self):
         '''
@@ -36,9 +74,13 @@ class Validator:
         '''
         with open(self.p4pktgen_outfile) as p4pktgen_out:
             test_cases = load_json(p4pktgen_out)
+            pcap_pkts = rdpcap(self.p4pktgen_pcap)
+
             count = 0
+            it = -1
 
             for case in test_cases:
+                it += 1
                 if case['result'] == 'NO_PACKET_FOUND': continue
                 if count >= self.max_test_cases: break
 
@@ -46,6 +88,7 @@ class Validator:
                 saved_test['id'] = count
                 saved_test['result'] = case['result']
                 saved_test['commands'] = case['ss_cli_setup_cmds']
+                saved_test['pcap_packet'] = pcap_pkts[it]
 
                 saved_test['packet'] = case['input_packets'][0]
                 saved_test['packet']['packet_binstr'] = ''
@@ -390,6 +433,124 @@ class Validator:
             for function in self.hdr_emitters.values():
                 h.write('{};\n'.format(function[0]))
             h.close()
+
+    def run_c_models(self):
+        '''
+        Compiles, executes and parses the output of the C model
+
+        Places on each test case with key 'c_model_output' a dict with:   
+            'port' : port where the output packet was emitted 
+            'packet' : binary representation of the packet
+            * -1 and None respectively if no packet was emitted by the C model
+        '''
+        # running all test cases
+        with open(devnull, 'w') as null:
+            for case in self.test_cases:
+                # compiling
+                call(['gcc', case['c_model']], stdout=null, stderr=null)
+                # running
+                pid = Popen('./a.out', shell=True, stdout=PIPE, stderr=PIPE)
+                # getting output
+                _, output = pid.communicate()
+                # parsing ('egress_spec:', [port], 'packet', [binary string])
+                _, egress_spec, _, binstr = output.split()
+                case['c_model_output'] = {
+                    'port': int(egress_spec), 
+                    'packet': binstr if binstr != '(null)' else None
+                }
+        call('rm -f a.out'.split())
+
+    def run_bmv2_tests(self):
+        '''
+        Runs each test case on the bmv2 switch
+
+        Algorithm:
+            1. setup veth ports
+            2. run bmv2
+            3. for each test case:
+                i) place table entries
+                ii) send packet 
+                iii) capture output
+                iv) clear table entries
+            4. kill bmv2
+            5. clear veth ports
+        '''
+        # 0. get `validation.py` directory
+        basedir = path.dirname(path.realpath(__file__))
+
+        # 1. setup veth ports
+        print('Setting up veth ports...')
+        call(['sudo', '{}/validation/veth_setup.sh'.format(basedir)], 
+            stdout=PIPE, stderr=PIPE)
+
+        # bmv2 will have port 0 mapped to veth1, port 1 mapped to veth3 and so on
+        #   veth0 <-> veth1
+        #   veth2 <-> veth3
+        #   veth4 <-> veth5
+        #   veth6 <-> veth7
+        # the dict below maps which iface must be used to send/sniff packets 
+        port2veth = {
+            0: 'veth0',
+            1: 'veth2',
+            2: 'veth4',
+            3: 'veth6'
+        }
+        # 2. run bmv2 
+        print('Starting bmv2...')
+        bmv2_cmd = 'sudo simple_switch {} {} --log-file {}'.format(
+            self.p4pktgen_in_json,
+            '-i0@veth1 -i1@veth3 -i2@veth5 -i3@veth7',
+            self.bmv2_log.split('.')[0]
+        )
+        bmv2 = Popen(bmv2_cmd.split(), stdout=PIPE, stderr=PIPE)
+        bmv2_pid = bmv2.pid
+        sleep(2) # waiting for bmv2 to setup
+
+        # 3. for each test case
+        i = 1
+        n = len(self.test_cases)
+        for case in self.test_cases:
+            print('Running test case ({}/{})...'.format(i, n))
+            i+=1
+
+            input_port = case['packet']['port']
+            c_out_port = case['c_model_output']['port']
+            pcap = case['pcap_packet']
+
+            # i) place table entries
+            cmd = 'simple_switch_CLI < {}'.format(case['cmdfile'])
+            call(cmd, stdout=PIPE, stderr=PIPE, shell=True)  
+
+            # ii/0) setup sniffer
+            out_iface = port2veth[c_out_port] if c_out_port != -1 else None
+            sniffer = Bmv2Sniffer(c_out_port, out_iface)
+            sniffer.start()
+            sleep(0.01) # concede CPU to sniffer
+
+            # ii) send packet         
+            # print('sending packet ports {} => {}'.format(input_port, c_out_port))
+            sendp(pcap, iface=port2veth[input_port], verbose=False)
+
+            # iii) capture output
+            sniffer.join()
+            case['bmv2_output'] = [
+                pkt_to_binstr(pkt) for pkt in sniffer.capture if pkt != None
+            ]
+                
+            # iv) clear table entries
+            cmd = 'echo "reset_state" | simple_switch_CLI'
+            call(cmd, stdout=PIPE, stderr=PIPE, shell=True)
+
+        # 4. kill bmv2
+        print('Stopping bmv2...')
+        call('sudo kill {} {}'.format(bmv2_pid, bmv2_pid+1), shell=True)
+
+        # 5. clear veth ports
+        print('Removing veth ports...')
+        call(['sudo', '{}/validation/veth_teardown.sh'.format(basedir)], 
+            stdout=PIPE, stderr=PIPE)
+
+# ========================================================================================
 
 if __name__ == '__main__':
     validator = Validator()

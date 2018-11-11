@@ -3,11 +3,14 @@
 import logging
 logging.getLogger('scapy.runtime').setLevel(logging.ERROR)
 
+import argparse
 import threading
+import time
 
 from json import load as load_json
 from os import path, devnull
 from subprocess import call, Popen, PIPE, STDOUT
+import subprocess as sp
 from time import sleep
 from scapy.all import wrpcap, rdpcap, sendp, sniff
 from P4_to_C import run as p4_to_c
@@ -16,10 +19,11 @@ from P4_to_C import run as p4_to_c
 
 SNIFFING_TIMEOUT_S = 0.5
 MAX_TEST_CASES = 10
+P4PKTGEN_INFILE = 'p4pktgen.json'
 P4PKTGEN_OUTFILE = 'test-cases.json'
 P4PKTGEN_PCAP = 'test.pcap'
-P4PKTGEN_INFILE = 'ts-p4pktgen.json'
-ASSERTP4_JSON_FILE = 'ts.json'
+PATH_TO_P4C = '/home/gabriel/Software/p4c/build/p4c-bm2-ss'
+PATH_TO_P4PKTGEN = '/home/gabriel/Software/p4pktgen/my-venv/bin/p4pktgen'
 
 # ==== Helper functions ==================================================================
 
@@ -41,32 +45,79 @@ class Bmv2Sniffer(threading.Thread):
     def run(self):
         if self.iface != None:
             self.capture = sniff(iface=self.iface, timeout=SNIFFING_TIMEOUT_S)
+        else:
+            sleep(SNIFFING_TIMEOUT_S)
 
 # ========================================================================================
 
 class Validator:
 
-    def __init__(self):
-        self.p4pktgen_in_json = P4PKTGEN_INFILE
-        self.assertp4_in_json = ASSERTP4_JSON_FILE
-        self.p4pktgen_outfile = P4PKTGEN_OUTFILE
-        self.p4pktgen_pcap = P4PKTGEN_PCAP
-        self.max_test_cases = MAX_TEST_CASES
+    def __init__(self, path_to_p4file, max_test_cases, keep_files):
+        self.path_to_p4file = path_to_p4file
+        self.p4_program_name = path.splitext(path.basename(self.path_to_p4file))[0]
+
+        self.keep_files = keep_files
+        self.max_test_cases = max_test_cases
         self.bmv2_log = 'bmv2log.txt'
 
+        self.p4pktgen_in_json = P4PKTGEN_INFILE
+        self.p4pktgen_outfile = P4PKTGEN_OUTFILE
+        self.p4pktgen_pcap = P4PKTGEN_PCAP
+        self.assertp4_in_json = '{}.json'.format(self.p4_program_name)
+
         self.test_cases = []
-        self.p4_program_name = path.splitext(path.basename(self.assertp4_in_json))[0]
         self.structs = {}
         self.hdr_extractors = {}
         self.hdr_emitters = {}
 
+        self.test_success = 0
+        self.test_fail = 0
+        self.test_total = 0
+
     def run(self):
+        start_time = time.time()
+
+        self.generate_json()
+        self.run_p4pktgen()
         self.parse_p4pktgen_output()
         self.generate_commands_txt()
         self.generate_c_models()
         self.run_c_models()
         self.run_bmv2_tests()
         self.compare_outputs()
+        self.cleanup()
+        self.summary()
+
+        elapsed_time = time.time() - start_time
+        print('Elapsed time: {:.2f} seconds'.format(elapsed_time))
+
+    def generate_json(self):
+        '''
+        Generates the JSON from the P4 program for both Assert-p4 and p4pktgen/bmv2
+        '''
+        print('### Generating JSON files from P4 program')
+        cmd_assertp4 = '{} {} --toJSON {}.json'.format(
+            PATH_TO_P4C, self.path_to_p4file, self.p4_program_name
+        )
+        cmd_p4pktgen = '{} {} -o p4pktgen.json'.format(
+            PATH_TO_P4C, self.path_to_p4file
+        )
+
+        with open(devnull, 'w') as null:
+            # print(cmd_assertp4.split())
+            call(cmd_assertp4.split(), stdout=null, stderr=null)
+            # print(cmd_p4pktgen.split())
+            call(cmd_p4pktgen.split(), stdout=null, stderr=null)
+
+    def run_p4pktgen(self):
+        '''
+        Runs p4pktgen
+        '''
+        print('### Running p4pktgen')
+        cmd_p4pktgen = '{} -au p4pktgen.json'.format(PATH_TO_P4PKTGEN)
+
+        with open(devnull, 'w') as null:
+            call(cmd_p4pktgen.split(), stdout=null, stderr=null)
 
     def parse_p4pktgen_output(self):
         '''
@@ -82,6 +133,7 @@ class Validator:
 
             for case in test_cases:
                 it += 1
+                # TODO: improve parsing... it is not working consistently
                 if case['result'] == 'NO_PACKET_FOUND': continue
                 if count >= self.max_test_cases: break
 
@@ -515,7 +567,7 @@ class Validator:
         n = len(self.test_cases)
         for case in self.test_cases:
             print('Running test case ({}/{})...'.format(i, n))
-            i+=1
+            i += 1
 
             input_port = case['packet']['port']
             c_out_port = case['c_model_output']['port']
@@ -548,7 +600,6 @@ class Validator:
         # 4. kill bmv2
         print('Stopping bmv2...')
         call('sudo pkill simple_switch', shell=True)
-
 
         # 5. clear veth ports
         print('Removing veth ports...')
@@ -601,6 +652,10 @@ class Validator:
             while 'Dropping packet' not in bmv2log[line] and \
                   'Transmitting packet' not in bmv2log[line]:
                 line += 1
+                # TODO: why bmv2 does not log the last one?...
+                if line >= len(bmv2log):
+                    print("bmv2 log truncated... skipping")
+                    return
 
             dropped = True if 'Dropping packet' in bmv2log[line] else False
 
@@ -623,27 +678,81 @@ class Validator:
                     # ii/2 - compare packets
                     if bmv2_pkt == c_model_output['packet']:
                         print('SUCCESS: emitted packets are the same')
+                        self.test_success += 1
                     else:
                         print('ERROR: emitted packets are not the same')
+                        self.test_fail += 1
                 
                 # ERROR: output ports were not the same
                 else:
                     print('ERROR: bmv2 emitted in port {} but c model in {}'\
                         .format(bmv2_port, c_model_output['port']))
+                    self.test_fail += 1
 
             # 3. if pkt was dropped:
             if dropped:
                 # i) check if the C_model dropped it as well
                 if c_model_output['port'] == -1:
                     print('SUCCESS: both bmv2 and c model dropped the packet')
+                    self.test_success += 1
                 else:
                     print('ERROR: bmv2 dropped but c model didnt')
+                    self.test_fail += 1
+
+            
+            self.test_total += 1
 
             print('----------------------------------------------------------')
         print('###############################################################')        
 
+    def cleanup(self):
+        '''
+        Cleans all generated files
+        '''
+        if keep_files: return
+        print('### Cleaning up...')
+
+        files = [
+            P4PKTGEN_INFILE, P4PKTGEN_OUTFILE, P4PKTGEN_PCAP,
+            '{}.json'.format(self.p4_program_name), 
+            '{}*.c'.format(self.p4_program_name), 'commands*.txt',
+            self.bmv2_log, 'validation.h'
+        ]
+        
+        for file in files:
+            cmd_rm = 'rm -f {}'.format(file)
+            call(cmd_rm, shell=True)
+
+    def summary(self):
+        '''
+        Summarizes the validation results
+        '''
+        percent_success = ((self.test_success*1.0)/self.test_total) * 100.0
+        percent_failed = ((self.test_fail*1.0)/self.test_total) * 100.0
+
+        print('###############################################################')
+        print('### Summary')
+        print('P4 Program: {}'.format(self.p4_program_name))
+        print('Total tests: {}'.format(self.test_total))
+        print('')
+        print('Successful tests: {} ({:.2f}%)'.format(self.test_success, percent_success))
+        print('Failed tests: {} ({:.2f}%)'.format(self.test_fail, percent_failed))
+        print('###############################################################')
+
 # ========================================================================================
 
 if __name__ == '__main__':
-    validator = Validator()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('p4file', type=str, help='path to p4 program (.p4)')
+    parser.add_argument('-t', '--max-test-cases', type=int, default=MAX_TEST_CASES,
+        help='number of test cases (default: 10)')
+    parser.add_argument('-k', '--keep-files', action='store_const', const=True,
+        help='if set, does not perform cleanup activities after validation')
+    args = parser.parse_args()
+
+    p4 = args.p4file
+    max_test_cases = args.max_test_cases
+    keep_files = True if args.keep_files else False
+
+    validator = Validator(args.p4file, args.max_test_cases, args.keep_files)
     validator.run()

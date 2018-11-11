@@ -29,7 +29,7 @@ def hexchar_to_binstr(hexchar):
 def pkt_to_binstr(pkt):
     p = str(pkt)
     l = len(p)
-    return bin(int(p.encode('hex'), 16))[2:].zfill(l*4)
+    return bin(int(p.encode('hex'), 16))[2:].zfill(l*8)
 
 class Bmv2Sniffer(threading.Thread):
     def __init__(self, port, iface):
@@ -66,12 +66,13 @@ class Validator:
         self.generate_c_models()
         self.run_c_models()
         self.run_bmv2_tests()
-        # TODO: compare outputs (parse bmv2 log for drops...)
+        self.compare_outputs()
 
     def parse_p4pktgen_output(self):
         '''
         Parses the JSON output of p4pktgen pointed by 'p4pktgen_outfile'
         '''
+        print('### Parsing p4pktgen output')
         with open(self.p4pktgen_outfile) as p4pktgen_out:
             test_cases = load_json(p4pktgen_out)
             pcap_pkts = rdpcap(self.p4pktgen_pcap)
@@ -112,6 +113,7 @@ class Validator:
         '''
         Writes the commands.txt files based on the test cases from p4pktgen
         '''
+        print('### Generating commands.txt')
         for test_case in self.test_cases:
             test_case['cmdfile'] = 'commands{}.txt'.format(test_case['id'])
             with open(test_case['cmdfile'], 'w') as f:
@@ -123,6 +125,7 @@ class Validator:
         '''
         Generates the C model of the P4 program with an input packet set.
         '''
+        print('### Generating C models')
         for test_case in self.test_cases:
             test_case['c_model'] = '{}{}.c'.format(self.p4_program_name, test_case['id'])
             p4_to_c(self.assertp4_in_json, test_case['cmdfile'], test_case['c_model'])
@@ -443,6 +446,7 @@ class Validator:
             'packet' : binary representation of the packet
             * -1 and None respectively if no packet was emitted by the C model
         '''
+        print('### Running C models')
         # running all test cases
         with open(devnull, 'w') as null:
             for case in self.test_cases:
@@ -475,6 +479,7 @@ class Validator:
             4. kill bmv2
             5. clear veth ports
         '''
+        print('### Running tests in Bmv2')
         # 0. get `validation.py` directory
         basedir = path.dirname(path.realpath(__file__))
 
@@ -502,8 +507,7 @@ class Validator:
             '-i0@veth1 -i1@veth3 -i2@veth5 -i3@veth7',
             self.bmv2_log.split('.')[0]
         )
-        bmv2 = Popen(bmv2_cmd.split(), stdout=PIPE, stderr=PIPE)
-        bmv2_pid = bmv2.pid
+        Popen(bmv2_cmd.split(), stdout=PIPE, stderr=PIPE)
         sleep(2) # waiting for bmv2 to setup
 
         # 3. for each test case
@@ -543,12 +547,100 @@ class Validator:
 
         # 4. kill bmv2
         print('Stopping bmv2...')
-        call('sudo kill {} {}'.format(bmv2_pid, bmv2_pid+1), shell=True)
+        call('sudo pkill simple_switch', shell=True)
+
 
         # 5. clear veth ports
         print('Removing veth ports...')
         call(['sudo', '{}/validation/veth_teardown.sh'.format(basedir)], 
             stdout=PIPE, stderr=PIPE)
+        
+        print('###############################################################')
+
+    def compare_outputs(self):
+        '''
+        Compares the output of the C model vs bmv2 processing
+        
+        Algorithm for each test case:
+        1. check if pkt was dropped or emitted (bmv2 log)
+        2. if pkt was emitted:
+            i) check if the output port was the same
+            ii) check if the pkt binstr was the same
+        3. if pkt was dropped:
+            i) check if the C_model dropped it as well
+        ''' 
+        print('### Comparing outputs')
+        bmv2log = []
+        with open(self.bmv2_log, 'r') as f:
+            bmv2log = f.readlines()
+
+        if len(bmv2log) == 0:
+            print('ERROR: could not read bmv2 log')
+            return
+
+        line = 0
+        it = 1
+        for case in self.test_cases:
+            print('Comparing output of test case #{}...'.format(it))
+            it += 1
+
+            input_port = case['packet']['port']
+            bmv2_output = case['bmv2_output']
+            c_model_output = case['c_model_output']
+
+            # 1. check if pkt was dropped or emited (bmv2 log)
+            # 1/1 - find acknowledgement of new pkt in bmv2 log
+            while 'Processing packet received on port' not in bmv2log[line]:
+                line += 1
+            
+            # # outputs
+            # print(c_model_output['port'], c_model_output['packet'])
+            # print(case['bmv2_output'])
+
+            # 1/2 - find if packet was dropped or emitted
+            while 'Dropping packet' not in bmv2log[line] and \
+                  'Transmitting packet' not in bmv2log[line]:
+                line += 1
+
+            dropped = True if 'Dropping packet' in bmv2log[line] else False
+
+            # 2. if pkt was emitted:
+            if not dropped:
+                tline = bmv2log[line].split()
+                bmv2_port = int(tline[-1]) 
+                # i) check if the output port was the same
+                if c_model_output['port'] == bmv2_port:
+                    # ii) check if the pkt binstr was the same
+                    # ii/1 - get pkt from bmv2 output
+                    bmv2_pkt = ''
+                    if input_port == bmv2_port:
+                        # if the input and output port are the same, the sniffer
+                        # captured both packets, so the 2nd must be selected
+                        bmv2_pkt = bmv2_output[1]
+                    else:
+                        bmv2_pkt = bmv2_output[0]
+                    
+                    # ii/2 - compare packets
+                    if bmv2_pkt == c_model_output['packet']:
+                        print('SUCCESS: emitted packets are the same')
+                    else:
+                        print('ERROR: emitted packets are not the same')
+                
+                # ERROR: output ports were not the same
+                else:
+                    print('ERROR: bmv2 emitted in port {} but c model in {}'\
+                        .format(bmv2_port, c_model_output['port']))
+
+            # 3. if pkt was dropped:
+            if dropped:
+                # i) check if the C_model dropped it as well
+                if c_model_output['port'] == -1:
+                    print('SUCCESS: both bmv2 and c model dropped the packet')
+                else:
+                    print('ERROR: bmv2 dropped but c model didnt')
+
+            print('----------------------------------------------------------')
+        print('###############################################################')        
 
 # ========================================================================================
 

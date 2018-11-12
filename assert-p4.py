@@ -1,7 +1,6 @@
 #!/usr/bin/env python2
 
-# TODO: add processing of --validate and --keep-files
-#   validate => dont perform symbolic execution, just create C model and commands.txt
+# TODO: add processing of --keep-files
 #   keep-files => if not set, remove klee-* and *.json files
 
 import argparse

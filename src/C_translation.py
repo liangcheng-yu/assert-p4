@@ -29,6 +29,55 @@ void end_assertions() {
 emitHeadersAssertions = []
 extractHeadersAssertions = []
 
+# cleanup global variables for run() reusability in the same program...
+def cleanup_variables():
+    global headers
+    headers = []
+    global structFieldsHeaderTypes
+    structFieldsHeaderTypes = {} #structField, structFieldType
+    global structs
+    structs = {} # structName, listOfFields
+    global headerStackSize
+    headerStackSize = {}
+    global currentPacketAllocationPosition
+    currentPacketAllocationPosition = 0
+    global emitPosition
+    emitPosition = 0
+    global typedef
+    typedef = {} #typedefName, typedefNode
+    global actionIDs
+    actionIDs = {} #actionName, nodeID
+    global tableIDs
+    tableIDs = {} #tableName, nodeID
+    global declarationTypes
+    declarationTypes = {} #instanceName, instanceType
+    global forwardDeclarations
+    forwardDeclarations = []
+    global package
+    package = ""
+    global currentTable
+    currentTable = "" 
+    global forwardingRules
+    forwardingRules = {}
+    global currentTableKeys
+    currentTableKeys = {} #keyName, (exact, lpm or ternary)
+    global globalDeclarations
+    globalDeclarations = ""
+    global assertionsCount
+    assertionsCount = 0 #tracking id for klee_print_once
+    global finalAssertions
+    finalAssertions = """void assert_error(int id, char msg[]) {
+    \tklee_print_once(id, msg);
+    \t//klee_abort();
+    }
+
+    void end_assertions() {
+    """
+    global emitHeadersAssertions
+    emitHeadersAssertions = []
+    global extractHeadersAssertions
+    extractHeadersAssertions = []
+
 def remove_unecessary_extract_aux_vars(lines):
     returnString = ""
     global_vars = set()
@@ -50,7 +99,8 @@ def post_processing(model_string):
     return remove_unecessary_extract_aux_vars(model_string.split("\n"))
 
 def run(node, rules):
-    if rules:
+    cleanup_variables()
+    if rules != None:
         global forwardingRules
         forwardingRules = rules
     returnString = "#define BITSLICE(x, a, b) ((x) >> (b)) & ((1 << ((a)-(b)+1)) - 1)\n#include<stdio.h>\n#include<stdint.h>\n#include<stdlib.h>\n\nint assert_forward = 1;\nint action_run;\n\nvoid end_assertions();\n\n"
@@ -157,7 +207,7 @@ def Mul(node):
     return str(toC(node.left)) + " * " + str(toC(node.right))
 
 def ActionList(node):
-    if not forwardingRules:
+    if forwardingRules == None:
         return actionListNoRules(node)
     else:
         return ""
@@ -468,7 +518,7 @@ def P4Action(node):
     parameters = ""
     for param in node.parameters.parameters.vec:
         if param.direction == "":
-            if forwardingRules:
+            if forwardingRules != None:
                 parameter = ""
                 if param.type.Node_Type == "Type_Bits":
                     parameter = bitsSizeToType(param.type.size) + " " + param.name
@@ -498,7 +548,7 @@ def P4Table(node):
     currentTable = node.name
     forwardDeclarations.append([node.name + "_" + str(node.Node_ID), ""])
     tableBody = toC(node.properties)
-    if forwardingRules:
+    if forwardingRules != None:
         tableBody = actionListWithRules(node)
     global currentTableKeys
     currentTableKeys = {}

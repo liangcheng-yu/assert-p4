@@ -85,7 +85,7 @@ parser ParserImpl(packet_in packet, out headers hdr, inout metadata meta, inout 
 
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
-        verify(hdr.ipv4.ihl >= 5, error.IPHeaderTooShort);
+        // verify(hdr.ipv4.ihl >= 5, error.IPHeaderTooShort);
         transition select(hdr.ipv4.ihl) {
             5             : accept;
             default       : parse_ipv4_option;

@@ -691,12 +691,19 @@ class Validator:
                         print('SUCCESS: emitted packets are the same')
                         self.test_success += 1
                     else:
-                        print('ERROR: emitted packets are not the same')
-                        print('cout: {}'.format(c_model_output['packet']))
-                        print('bmv2: {}'.format(bmv2_pkt))
-                        print(len(str(case['bmv2_output_raw'][1])))
-                        # print(bmv2_output)
-                        self.test_fail += 1
+                        # workaround: check for scapy bug - trailing byte
+                        # [...] Transmitting packet of size X out of port Y
+                        size = int(tline[-5]) * 8 # X is in bytes
+                        if bmv2_pkt[:size] == c_model_output['packet']:
+                            print('SUCCESS: emitted packets are the same')
+                            self.test_success += 1
+                        else:
+                            print('ERROR: emitted packets are not the same')
+                            # print('cout: {}'.format(c_model_output['packet']))
+                            # print('bmv2: {}'.format(bmv2_pkt))
+                            # print(len(str(case['bmv2_output_raw'][1])))
+                            # print(bmv2_output)
+                            self.test_fail += 1
                 
                 # ERROR: output ports were not the same
                 else:

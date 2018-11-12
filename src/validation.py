@@ -17,7 +17,7 @@ from P4_to_C import run as p4_to_c
 
 # ==== Constants =========================================================================
 
-SNIFFING_TIMEOUT_S = 0.5
+SNIFFING_TIMEOUT_S = 0.75
 MAX_TEST_CASES = 10
 P4PKTGEN_INFILE = 'p4pktgen.json'
 P4PKTGEN_OUTFILE = 'test-cases.json'
@@ -32,8 +32,11 @@ def hexchar_to_binstr(hexchar):
 
 def pkt_to_binstr(pkt):
     p = str(pkt)
-    l = len(p)
-    return bin(int(p.encode('hex'), 16))[2:].zfill(l*8)
+    hexstr = p.encode('hex')
+    binstr = ''
+    for hexchar in hexstr:
+        binstr += hexchar_to_binstr(hexchar)
+    return binstr
 
 class Bmv2Sniffer(threading.Thread):
     def __init__(self, port, iface):
@@ -43,10 +46,12 @@ class Bmv2Sniffer(threading.Thread):
         threading.Thread.__init__(self)
     
     def run(self):
+        # iface == None, expecting packet drop
         if self.iface != None:
-            self.capture = sniff(iface=self.iface, timeout=SNIFFING_TIMEOUT_S)
-        else:
-            sleep(SNIFFING_TIMEOUT_S)
+            # if input_port == output_port, then 2 packets will be sniffed
+            # after sniffing 2, there is nothing more to capture
+            # in other cases, wait some time before timing out to capture packets
+            self.capture = sniff(iface=self.iface, timeout=SNIFFING_TIMEOUT_S, count=2)
 
 # ========================================================================================
 
@@ -132,9 +137,8 @@ class Validator:
             it = -1
 
             for case in test_cases:
-                it += 1
-                # TODO: improve parsing... it is not working consistently
                 if case['result'] == 'NO_PACKET_FOUND': continue
+                it += 1
                 if count >= self.max_test_cases: break
 
                 saved_test = {}
@@ -183,7 +187,7 @@ class Validator:
             p4_to_c(self.assertp4_in_json, test_case['cmdfile'], test_case['c_model'])
 
             lines = []
-            with open(test_case['c_model'], 'r+') as c_model:
+            with open(test_case['c_model'], 'r') as c_model:
                 lines = c_model.readlines()
 
             # add include for 'memcpy'
@@ -577,11 +581,11 @@ class Validator:
             cmd = 'simple_switch_CLI < {}'.format(case['cmdfile'])
             call(cmd, stdout=PIPE, stderr=PIPE, shell=True)  
 
-            # ii/0) setup sniffer
+            # ii/0 - setup sniffer
             out_iface = port2veth[c_out_port] if c_out_port != -1 else None
             sniffer = Bmv2Sniffer(c_out_port, out_iface)
             sniffer.start()
-            sleep(0.01) # concede CPU to sniffer
+            sleep(0.05) # concede CPU to sniffer
 
             # ii) send packet         
             # print('sending packet ports {} => {}'.format(input_port, c_out_port))
@@ -591,6 +595,9 @@ class Validator:
             sniffer.join()
             case['bmv2_output'] = [
                 pkt_to_binstr(pkt) for pkt in sniffer.capture if pkt != None
+            ]
+            case['bmv2_output_raw'] = [
+                pkt for pkt in sniffer.capture if pkt != None
             ]
                 
             # iv) clear table entries
@@ -643,6 +650,10 @@ class Validator:
             # 1/1 - find acknowledgement of new pkt in bmv2 log
             while 'Processing packet received on port' not in bmv2log[line]:
                 line += 1
+                # TODO: why bmv2 does not log the last one?...
+                if line >= len(bmv2log):
+                    print("bmv2 log truncated... skipping")
+                    return
             
             # # outputs
             # print(c_model_output['port'], c_model_output['packet'])
@@ -671,7 +682,7 @@ class Validator:
                     if input_port == bmv2_port:
                         # if the input and output port are the same, the sniffer
                         # captured both packets, so the 2nd must be selected
-                        bmv2_pkt = bmv2_output[1]
+                        bmv2_pkt = bmv2_output[1] if len(bmv2_output) >= 2 else None
                     else:
                         bmv2_pkt = bmv2_output[0]
                     
@@ -681,6 +692,10 @@ class Validator:
                         self.test_success += 1
                     else:
                         print('ERROR: emitted packets are not the same')
+                        print('cout: {}'.format(c_model_output['packet']))
+                        print('bmv2: {}'.format(bmv2_pkt))
+                        print(len(str(case['bmv2_output_raw'][1])))
+                        # print(bmv2_output)
                         self.test_fail += 1
                 
                 # ERROR: output ports were not the same

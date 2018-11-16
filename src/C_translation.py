@@ -2,6 +2,8 @@ import re
 import uuid
 # from helper import eprint
 
+d_count = 0
+
 headers = []
 structFieldsHeaderTypes = {} #structField, structFieldType
 structs = {} # structName, listOfFields
@@ -58,7 +60,7 @@ def cleanup_variables():
     global currentTable
     currentTable = "" 
     global forwardingRules
-    forwardingRules = {}
+    forwardingRules = None
     global currentTableKeys
     currentTableKeys = {} #keyName, (exact, lpm or ternary)
     global globalDeclarations
@@ -801,6 +803,15 @@ def actionListWithRules(node):
     returnString = ""
     defaultRule = ""
 
+    global currentTable
+    backupName = currentTable
+    if currentTable in forwardingRules.keys():
+        pass
+    elif currentTable[1:] in forwardingRules.keys():
+        currentTable = currentTable[1:]
+    elif currentTable[1:-2] in forwardingRules.keys():
+        currentTable = currentTable[1:-2]
+
     if currentTable in forwardingRules.keys():
         for rule in forwardingRules[currentTable]:
             if rule[0] == "table_add":
@@ -828,6 +839,8 @@ def actionListWithRules(node):
         #TODO-v2: Deploy case where there is no rule for a given table
         # (check if this else branch is really needed or if it is possible to deal with this case when processing the "default_action" key from a P4 program)
         pass
+
+    currentTable = backupName
 
     return returnString
 

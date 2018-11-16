@@ -82,8 +82,8 @@ class Validator:
     def run(self):
         start_time = time.time()
 
-        self.generate_json()
-        self.run_p4pktgen()
+        # self.generate_json()
+        # self.run_p4pktgen()
         self.parse_p4pktgen_output()
         self.generate_commands_txt()
         self.generate_c_models()
@@ -719,6 +719,7 @@ class Validator:
                     self.test_success += 1
                 else:
                     print('ERROR: bmv2 dropped but c model didnt')
+                    print(c_model_output)
                     self.test_fail += 1
 
             

@@ -167,15 +167,16 @@ def BlockStatement(node):
             returnString += "\t" + nodeString + "\n"
     return returnString
 
+# precedence of operators require anoter set of parenthesis
 def BAnd(node):
-    return toC(node.left) + " & " + toC(node.right)
+    return "(" + toC(node.left) + " & " + toC(node.right) + ")"
 
 def BOr(node):
-    return toC(node.left) + " | " + toC(node.right)
+    return "(" + toC(node.left) + " | " + toC(node.right) + ")"
 
 def BXor(node):
     #return "<BXor>" + str(node.Node_ID)
-    return toC(node.left) + " ^ " + toC(node.right)
+    return "(" + toC(node.left) + " ^ " + toC(node.right) + ")"
 
 def Cast(node):
     return cast(node.expr, node.destType)
@@ -863,6 +864,7 @@ def getActionFullName(actionName):
     curr_action = "UNKNOWN_ACTION"
     similarity = 0.0
 
+    # TODO: select the *correct* action (e.g. more than one action with the same name...)
     for action in actionIDs:
         if actionName in action:
             new_sim = check_similarity(actionName, action)

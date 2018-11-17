@@ -18,6 +18,7 @@ package = ""
 currentTable = "" 
 forwardingRules = {}
 currentTableKeys = {} #keyName, (exact, lpm or ternary)
+currentTableKeysOrdered = []
 globalDeclarations = ""
 assertionsCount = 0 #tracking id for klee_print_once
 finalAssertions = """void assert_error(int id, char msg[]) {
@@ -62,6 +63,8 @@ def cleanup_variables():
     forwardingRules = None
     global currentTableKeys
     currentTableKeys = {} #keyName, (exact, lpm or ternary)
+    global currentTableKeysOrdered
+    currentTableKeysOrdered = []
     global globalDeclarations
     globalDeclarations = ""
     global assertionsCount
@@ -402,6 +405,7 @@ def Key(node):
         keyName = toC(key.expression)
         matchType = toC(key.matchType)
         currentTableKeys[keyName] = matchType
+        currentTableKeysOrdered.append(keyName)
         returnString += keyName +  ":" + matchType + ", "
     return returnString[:-2]
 
@@ -554,6 +558,8 @@ def P4Table(node):
         tableBody = actionListWithRules(node)
     global currentTableKeys
     currentTableKeys = {}
+    global currentTableKeysOrdered
+    currentTableKeysOrdered = []
     tableName = node.name + "_" + str(node.Node_ID)
     return "//Table\nvoid " + tableName + "() {\n" + tableBody + "\n}\n\n"
 
@@ -815,12 +821,23 @@ def actionListWithRules(node):
         for rule in forwardingRules[currentTable]:
             if rule[0] == "table_add":
                 match = ""
-                for idx, key in enumerate(currentTableKeys):
+                # for idx, key in enumerate(currentTableKeys):
+                #     if currentTableKeys[key] == "exact":
+                #         match += key + " == " + convertCommandValue(rule[2][idx]) + " && "
+                #     elif currentTableKeys[key] == "ternary":
+                #         #TODO-v2: Model other match types (i.e., ternary, lpm, etc) as well as rule priorities
+                #         pass
+
+                ##
+                for idx in range(len(currentTableKeysOrdered)):
+                    key = currentTableKeysOrdered[idx]
                     if currentTableKeys[key] == "exact":
                         match += key + " == " + convertCommandValue(rule[2][idx]) + " && "
-                    elif currentTableKeys[key] == "ternary":
+                    else:
                         #TODO-v2: Model other match types (i.e., ternary, lpm, etc) as well as rule priorities
                         pass
+
+                ##
                 match = match[:-3]
                 arguments = ""
                 for arg in rule[3]:

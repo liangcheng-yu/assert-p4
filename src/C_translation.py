@@ -1,8 +1,7 @@
 import re
 import uuid
+from difflib import SequenceMatcher
 # from helper import eprint
-
-d_count = 0
 
 headers = []
 structFieldsHeaderTypes = {} #structField, structFieldType
@@ -246,7 +245,7 @@ def Annotations(node):
 def assertion(assertionString, nodeID):
     returnString = ""
     logicalExpression = ""
-    errorMessage = ""
+    # errorMessage = ""
     global globalDeclarations
     if "!" == assertionString[0]:
         neg = assertion(assertionString[1:], nodeID)
@@ -792,9 +791,8 @@ def ParserState(node):
     parser = "void " + node.name + "() {\n" + components + "\t" + expression + "\n}\n\n"
     return parser
 
-
-    returnString = "val parserState_" + node.name + " = InstructionBlock(\n" + toC(node.components) + ")\n"
-    return returnString
+    # returnString = "val parserState_" + node.name + " = InstructionBlock(\n" + toC(node.components) + ")\n"
+    # return returnString
 
 ########### HELPER FUNCTIONS ###########
 
@@ -858,11 +856,30 @@ def convertCommandValue(arg):
         return arg
 
 def getActionFullName(actionName):
-    actionName = actionName + "_"
+    # actionName = actionName + "_"
+
+    check_similarity = lambda a,b: SequenceMatcher(None, a, b).ratio() 
+
+    curr_action = "UNKNOWN_ACTION"
+    similarity = 0.0
+
     for action in actionIDs:
         if actionName in action:
-            return action + "_" + str(actionIDs[action])
-    return "UNKNOWN_ACTION"
+            new_sim = check_similarity(actionName, action)
+            if similarity < new_sim:
+                curr_action = action
+                similarity = new_sim
+
+                if similarity > 0.9:
+                    # print actionName, curr_action, similarity, 'early return'
+                    return action + "_" + str(actionIDs[action])
+    
+    # print actionName, curr_action, similarity
+
+    if curr_action != "UNKNOWN_ACTION":
+        return curr_action + "_" + str(actionIDs[curr_action])
+    else:
+        return "UNKNOWN_ACTION"
 
 def actionListNoRules(node):
     returnString = "\tint symbol;\n" + klee_make_symbolic("symbol")

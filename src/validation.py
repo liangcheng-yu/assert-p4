@@ -82,8 +82,8 @@ class Validator:
     def run(self):
         start_time = time.time()
 
-        # self.generate_json()
-        # self.run_p4pktgen()
+        self.generate_json()
+        self.run_p4pktgen()
         self.parse_p4pktgen_output()
         self.generate_commands_txt()
         self.generate_c_models()
@@ -558,12 +558,14 @@ class Validator:
         }
         # 2. run bmv2 
         print('Starting bmv2...')
-        bmv2_cmd = 'sudo simple_switch {} {} --log-file {}'.format(
+
+        outfile = open(self.bmv2_log, 'w')
+
+        bmv2_cmd = 'sudo simple_switch {} {} --log-console'.format(
             self.p4pktgen_in_json,
-            '-i0@veth1 -i1@veth3 -i2@veth5 -i3@veth7',
-            self.bmv2_log.split('.')[0]
+            '-i0@veth1 -i1@veth3 -i2@veth5 -i3@veth7'
         )
-        Popen(bmv2_cmd.split(), stdout=PIPE, stderr=PIPE)
+        Popen(bmv2_cmd.split(), stdout=outfile, stderr=outfile)
         sleep(2) # waiting for bmv2 to setup
 
         # 3. for each test case
@@ -612,6 +614,8 @@ class Validator:
         print('Removing veth ports...')
         call(['sudo', '{}/validation/veth_teardown.sh'.format(basedir)], 
             stdout=PIPE, stderr=PIPE)
+
+        outfile.close()
         
         print('###############################################################')
 
@@ -628,13 +632,22 @@ class Validator:
             i) check if the C_model dropped it as well
         ''' 
         print('### Comparing outputs')
+
         bmv2log = []
         with open(self.bmv2_log, 'r') as f:
             bmv2log = f.readlines()
 
-        if len(bmv2log) == 0:
-            print('ERROR: could not read bmv2 log')
-            return
+        # # joining logs...
+        # name_splitted = self.bmv2_log.rsplit('.', 1)
+        # for i in range(1, 11):
+        #     splitted_log_name = '{}.{}.{}'.format(name_splitted[0], i, name_splitted[1])
+        #     if path.isfile(splitted_log_name):
+        #         with open(splitted_log_name, 'r') as f:
+        #             bmv2log = f.readlines() + bmv2log
+
+        # if len(bmv2log) == 0:
+        #     print('ERROR: could not read bmv2 log')
+        #     return
 
         line = 0
         it = 1
@@ -699,8 +712,8 @@ class Validator:
                             self.test_success += 1
                         else:
                             print('ERROR: emitted packets are not the same')
-                            # print('cout: {}'.format(c_model_output['packet']))
-                            # print('bmv2: {}'.format(bmv2_pkt))
+                            print('cout: {}'.format(c_model_output['packet']))
+                            print('bmv2: {}'.format(bmv2_pkt))
                             # print(len(str(case['bmv2_output_raw'][1])))
                             # print(bmv2_output)
                             self.test_fail += 1
@@ -750,6 +763,10 @@ class Validator:
         '''
         Summarizes the validation results
         '''
+        if self.test_total == 0:
+            print 'ERROR: no tests were evaluated.'
+            exit(1)
+
         percent_success = ((self.test_success*1.0)/self.test_total) * 100.0
         percent_failed = ((self.test_fail*1.0)/self.test_total) * 100.0
 

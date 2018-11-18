@@ -117,8 +117,10 @@ struct ipv4_metadata_t {
 }
 
 struct ipv6_metadata_t {
-    bit<128> lkp_ipv6_sa;
-    bit<128> lkp_ipv6_da;
+    // bit<128> lkp_ipv6_sa; CHANGED FOR ASSERT-P4 VALIDATION
+    bit<64> lkp_ipv6_sa;
+    // bit<128> lkp_ipv6_da; CHANGED FOR ASSERT-P4 VALIDATION
+    bit<64> lkp_ipv6_da;
     bit<1>   ipv6_unicast_enabled;
     bit<1>   ipv6_src_is_link_local;
     bit<2>   ipv6_urpf_mode;
@@ -423,8 +425,10 @@ header ipv6_t {
     bit<16>  payloadLen;
     bit<8>   nextHdr;
     bit<8>   hopLimit;
-    bit<128> srcAddr;
-    bit<128> dstAddr;
+    // bit<128> srcAddr; CHANGED FOR ASSERT-P4 VALIDATION
+    bit<64> srcAddr; 
+    // bit<128> dstAddr; CHANGED FOR ASSERT-P4 VALIDATION
+    bit<64> dstAddr;
 }
 
 header sctp_t {
@@ -1820,7 +1824,8 @@ control process_rewrite(inout headers hdr, inout metadata meta, inout standard_m
             hdr.ipv4.isValid()       : exact;
             hdr.ipv6.isValid()       : exact;
             hdr.ipv4.dstAddr[31:28]  : exact;
-            hdr.ipv6.dstAddr[127:120]: exact;
+            // hdr.ipv6.dstAddr[127:120]: exact; CHANGED FOR ASSERT-P4 VALIDATION
+            hdr.ipv6.dstAddr[63:56]: exact;
         }
     }
     apply {
@@ -1934,7 +1939,8 @@ control process_mac_rewrite(inout headers hdr, inout metadata meta, inout standa
             hdr.ipv6.isValid()       : exact;
             //hdr.mpls[0].isValid()    : exact;
             hdr.ipv4.dstAddr[31:28]  : exact;
-            hdr.ipv6.dstAddr[127:120]: exact;
+            // hdr.ipv6.dstAddr[127:120]: exact; CHANGED FOR ASSERT-P4 VALIDATION
+            hdr.ipv6.dstAddr[63:56]: exact;
         }
     }
     @name(".smac_rewrite") table smac_rewrite {
@@ -2516,7 +2522,9 @@ control process_tunnel_encap(inout headers hdr, inout metadata meta, inout stand
     @name(".rewrite_tunnel_ipv4_dst") action rewrite_tunnel_ipv4_dst(bit<32> ip) {
         hdr.ipv4.dstAddr = ip;
     }
-    @name(".rewrite_tunnel_ipv6_dst") action rewrite_tunnel_ipv6_dst(bit<128> ip) {
+    //CHANGED FOR ASSERT-P4 VALIDATION
+    // @name(".rewrite_tunnel_ipv6_dst") action rewrite_tunnel_ipv6_dst(bit<128> ip) {
+    @name(".rewrite_tunnel_ipv6_dst") action rewrite_tunnel_ipv6_dst(bit<64> ip) {
         hdr.ipv6.dstAddr = ip;
     }
     @name(".inner_ipv4_udp_rewrite") action inner_ipv4_udp_rewrite() {
@@ -2883,7 +2891,9 @@ control process_tunnel_encap(inout headers hdr, inout metadata meta, inout stand
     @name(".rewrite_tunnel_ipv4_src") action rewrite_tunnel_ipv4_src(bit<32> ip) {
         hdr.ipv4.srcAddr = ip;
     }
-    @name(".rewrite_tunnel_ipv6_src") action rewrite_tunnel_ipv6_src(bit<128> ip) {
+    //CHANGED FOR ASSERT-P4 VALIDATION
+    // @name(".rewrite_tunnel_ipv6_src") action rewrite_tunnel_ipv6_src(bit<128> ip) {
+    @name(".rewrite_tunnel_ipv6_src") action rewrite_tunnel_ipv6_src(bit<64> ip) {
         hdr.ipv6.srcAddr = ip;
     }
     @name(".egress_vni") table egress_vni {
@@ -3441,7 +3451,8 @@ control validate_outer_ipv6_header(inout headers hdr, inout metadata meta, inout
         key = {
             hdr.ipv6.version         : exact;
             hdr.ipv6.hopLimit        : exact;
-            hdr.ipv6.srcAddr[127:112]: exact;
+            // hdr.ipv6.srcAddr[127:112]: exact; CHANGED FOR ASSERT-P4 VALIDATION
+            hdr.ipv6.srcAddr[63:51]: exact;            
         }
         size = 512;
     }
@@ -4680,7 +4691,8 @@ control process_validate_packet(inout headers hdr, inout metadata meta, inout st
             meta.l3_metadata.lkp_ip_ttl            : exact;
             meta.l3_metadata.lkp_ip_version        : exact;
             meta.ipv4_metadata.lkp_ipv4_sa[31:24]  : exact;
-            meta.ipv6_metadata.lkp_ipv6_sa[127:112]: exact;
+            // meta.ipv6_metadata.lkp_ipv6_sa[127:112]: exact; CHANGED FOR ASSERT-P4 VALIDATION
+            meta.ipv6_metadata.lkp_ipv6_sa[63:51]: exact;
         }
         size = 512;
     }

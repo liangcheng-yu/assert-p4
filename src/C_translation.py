@@ -19,6 +19,7 @@ currentTable = ""
 forwardingRules = {}
 currentTableKeys = {} #keyName, (exact, lpm or ternary)
 currentTableKeysOrdered = []
+currentTableDefaultAction = ""
 globalDeclarations = ""
 assertionsCount = 0 #tracking id for klee_print_once
 finalAssertions = """void assert_error(int id, char msg[]) {
@@ -65,6 +66,8 @@ def cleanup_variables():
     currentTableKeys = {} #keyName, (exact, lpm or ternary)
     global currentTableKeysOrdered
     currentTableKeysOrdered = []
+    global currentTableDefaultAction
+    currentTableDefaultAction = ""
     global globalDeclarations
     globalDeclarations = ""
     global assertionsCount
@@ -560,6 +563,8 @@ def P4Table(node):
     currentTableKeys = {}
     global currentTableKeysOrdered
     currentTableKeysOrdered = []
+    global currentTableDefaultAction
+    currentTableDefaultAction = ""
     tableName = node.name + "_" + str(node.Node_ID)
     return "//Table\nvoid " + tableName + "() {\n" + tableBody + "\n}\n\n"
 
@@ -577,7 +582,9 @@ def PathExpression(node):
 
 def Property(node):
     if node.name == "default_action":
-        return "\t// default_action " + toC(node.value)
+        global currentTableDefaultAction
+        currentTableDefaultAction = toC(node.value)
+        return "\t// default_action " + currentTableDefaultAction
     elif node.name == "size":
         return "\t// size " + toC(node.value)
     elif node.name == "actions":
@@ -806,7 +813,6 @@ def ParserState(node):
 def actionListWithRules(node):
     #forwardingRules
     returnString = ""
-    defaultRule = ""
 
     global currentTable
     backupName = currentTable
@@ -817,44 +823,50 @@ def actionListWithRules(node):
     elif currentTable[1:-2] in forwardingRules.keys():
         currentTable = currentTable[1:-2]
 
+    # this default action string will be informat of "<action>();" 
+    # as per function "Property", so we are removing the "();" part
+    # TODO: this is probably not the best way to handle this situation
+    defaultAction = getActionFullName(currentTableDefaultAction[:-3])
+    if defaultAction == "UNKNOWN_ACTION":
+        defaultAction = ""
+
+    table_add = False
+
     if currentTable in forwardingRules.keys():
+        # processing rules for this table
         for rule in forwardingRules[currentTable]:
+            # adding entry to table
             if rule[0] == "table_add":
                 match = ""
-                # for idx, key in enumerate(currentTableKeys):
-                #     if currentTableKeys[key] == "exact":
-                #         match += key + " == " + convertCommandValue(rule[2][idx]) + " && "
-                #     elif currentTableKeys[key] == "ternary":
-                #         #TODO-v2: Model other match types (i.e., ternary, lpm, etc) as well as rule priorities
-                #         pass
-
-                ##
+                
                 for idx in range(len(currentTableKeysOrdered)):
                     key = currentTableKeysOrdered[idx]
                     if currentTableKeys[key] == "exact":
                         match += key + " == " + convertCommandValue(rule[2][idx]) + " && "
+                        table_add = True
                     else:
-                        #TODO-v2: Model other match types (i.e., ternary, lpm, etc) as well as rule priorities
+                        #TODO: Model other match types (i.e., ternary, lpm, etc) as well as rule priorities
                         pass
 
-                ##
                 match = match[:-3]
                 arguments = ""
                 for arg in rule[3]:
                     arguments += convertCommandValue(arg) + ", "
                 arguments = arguments[:-2]
-                returnString += "\tif(" + match + "){\n\t\t" + getActionFullName(rule[1]) + "(" + arguments + ");\n\t} else"
+                returnString += "\tif(" + match + "){\n\t\t" + getActionFullName(rule[1]) + "(" + arguments + ");\n\t} else "
+            # changing default action
             elif rule[0] == "table_set_default":
-                defaultRule = " {\n\t\t" + getActionFullName(rule[1]) + "();\n\t}"
-        if defaultRule != "":
-            returnString += defaultRule
+                defaultAction = getActionFullName(rule[1])
+
+        # finally, adding default rule
+        if table_add:
+            returnString += "{\n\t\t" + defaultAction + "(); // default action\n\t}\n"
         else:
-            returnString = returnString[:-5]
-        #returnString += str(forwardingRules[currentTable])
+            returnString += "\t" + defaultAction + "(); // default action"
+
+    # no forwarding rules, add only default
     else:
-        #TODO-v2: Deploy case where there is no rule for a given table
-        # (check if this else branch is really needed or if it is possible to deal with this case when processing the "default_action" key from a P4 program)
-        pass
+        returnString = "\t" + defaultAction + "(); // default action"
 
     currentTable = backupName
 
@@ -1052,4 +1064,5 @@ def klee_make_symbolic(var):
 
 def mark_to_drop():
     return "void mark_to_drop() {\n\t" + dropPacketCode() + "\n}\n"
+
 

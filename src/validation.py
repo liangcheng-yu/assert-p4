@@ -788,11 +788,36 @@ if __name__ == '__main__':
         help='number of test cases (default: 10)')
     parser.add_argument('-k', '--keep-files', action='store_const', const=True,
         help='if set, does not perform cleanup activities after validation')
+    parser.add_argument('--p4c', type=str, help='path to p4c-bm2-ss binary')
+    parser.add_argument('--p4pktgen', type=str, help='path to p4pktgen binary')
     args = parser.parse_args()
 
     p4 = args.p4file
     max_test_cases = args.max_test_cases
     keep_files = True if args.keep_files else False
+
+    # finding p4c-bm2-ss binary
+    PATH_TO_P4C = args.p4c
+    if PATH_TO_P4C == None:
+        find_p4c = 'find {} -name p4c-bm2-ss'.format(path.expanduser('~'))
+        out, _ = Popen(find_p4c.split(), stdout=PIPE).communicate()
+        PATH_TO_P4C = out[:-1] if out else None
+
+        if PATH_TO_P4C == None:
+            print('p4c-bm2-ss not found. Please inform the path to ' + \
+                  'p4c-bm2-ss using argument `--p4c`')
+            exit(1)
+
+    # findind p4pktgen binary
+    PATH_TO_P4PKTGEN = args.p4pktgen
+    if PATH_TO_P4PKTGEN == None:
+        find_p4pktgen = 'find {} -name p4pktgen'.format(path.expanduser('~'))
+        out, _ = Popen(find_p4pktgen.split(), stdout=PIPE).communicate()
+        PATH_TO_P4PKTGEN = out[-1] if out else None
+
+        if PATH_TO_P4PKTGEN == None:
+            print('p4pktgen not found. Please inform the path to ' + \
+                  ' p4pktgen using argument `--p4pktgen`')
 
     validator = Validator(args.p4file, args.max_test_cases, args.keep_files)
     validator.run()

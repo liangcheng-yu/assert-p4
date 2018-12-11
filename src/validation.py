@@ -818,6 +818,7 @@ if __name__ == '__main__':
         if PATH_TO_P4PKTGEN == None:
             print('p4pktgen not found. Please inform the path to ' + \
                   ' p4pktgen using argument `--p4pktgen`')
+            exit(1)
 
     validator = Validator(args.p4file, args.max_test_cases, args.keep_files)
     validator.run()

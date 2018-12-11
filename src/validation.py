@@ -805,7 +805,7 @@ if __name__ == '__main__':
 
         if PATH_TO_P4C == None:
             print('p4c-bm2-ss not found. Please inform the path to ' + \
-                  'p4c-bm2-ss using argument `--p4c`')
+                  'p4c-bm2-ss using argument `--p4c`.')
             exit(1)
 
     # findind p4pktgen binary
@@ -817,7 +817,7 @@ if __name__ == '__main__':
 
         if PATH_TO_P4PKTGEN == None:
             print('p4pktgen not found. Please inform the path to ' + \
-                  ' p4pktgen using argument `--p4pktgen`')
+                  ' p4pktgen using argument `--p4pktgen`.')
             exit(1)
 
     validator = Validator(args.p4file, args.max_test_cases, args.keep_files)

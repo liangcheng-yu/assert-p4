@@ -799,24 +799,24 @@ if __name__ == '__main__':
     # finding p4c-bm2-ss binary
     PATH_TO_P4C = args.p4c
     if PATH_TO_P4C == None:
-        find_p4c = 'find {} -name p4c-bm2-ss'.format(path.expanduser('~'))
+        find_p4c = 'find {} -type f -name p4c-bm2-ss'.format(path.expanduser('~'))
         out, _ = Popen(find_p4c.split(), stdout=PIPE).communicate()
-        PATH_TO_P4C = out[:-1] if out else None
+        PATH_TO_P4C = out.split()[0] if out else None
 
         if PATH_TO_P4C == None:
-            print('p4c-bm2-ss not found. Please inform the path to ' + \
+            print('p4c-bm2-ss not found in your home directory. Please inform the path to ' + \
                   'p4c-bm2-ss using argument `--p4c`.')
             exit(1)
 
     # findind p4pktgen binary
     PATH_TO_P4PKTGEN = args.p4pktgen
     if PATH_TO_P4PKTGEN == None:
-        find_p4pktgen = 'find {} -name p4pktgen'.format(path.expanduser('~'))
+        find_p4pktgen = 'find {} -type f -name p4pktgen'.format(path.expanduser('~'))
         out, _ = Popen(find_p4pktgen.split(), stdout=PIPE).communicate()
-        PATH_TO_P4PKTGEN = out[-1] if out else None
+        PATH_TO_P4PKTGEN = out.split()[0] if out else None
 
         if PATH_TO_P4PKTGEN == None:
-            print('p4pktgen not found. Please inform the path to ' + \
+            print('p4pktgen not found in your home directory. Please inform the path to ' + \
                   ' p4pktgen using argument `--p4pktgen`.')
             exit(1)
 

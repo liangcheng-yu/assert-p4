@@ -147,7 +147,7 @@ Please feel free to contact us should any questions arise. Your feedback is grea
 
 | | |
 | - | - |
-| Gabriel Martins | <gnmartins@inf.ufrgs.br> |
+| Gabriel Martins | <gabrielnmartins@gmail.com> |
 | Marinho Barcellos | <marinho@inf.ufrgs.br> |
 | Miguel Neves | <mcneves@inf.ufrgs.br> |
 | | |

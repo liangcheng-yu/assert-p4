@@ -77,6 +77,11 @@ Alternatively, you can run the `assert-p4.sh` script from the root directory of 
 bash assert-p4.sh /path/to/program.p4 [/path/to/commands.txt]
 ```
 
+There is also an _experimental_ Python script for running the tool, which can be used as follows:
+```
+./assert-p4.py /path/to/program.p4 [/path/to/commands.txt] [--help]
+```
+
 ## Experiments
 
 Inside the `experiments/case_studies` folder there are examples of programs verified with assert-p4.

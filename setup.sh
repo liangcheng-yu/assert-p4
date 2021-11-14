@@ -108,17 +108,35 @@ sudo apt-get install -y bc bison build-essential cmake curl flex git libboost-al
 #=== LLVM ===========================
 echo "Building LLVM..."
 
-svn co https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_342/final llvm
-svn co https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_342/final llvm/tools/clang
-svn co https://llvm.org/svn/llvm-project/compiler-rt/tags/RELEASE_342/final llvm/projects/compiler-rt
-svn co https://llvm.org/svn/llvm-project/libcxx/tags/RELEASE_342/final llvm/projects/libcxx
-svn co https://llvm.org/svn/llvm-project/test-suite/tags/RELEASE_342/final/ llvm/projects/test-suite
+# https://releases.llvm.org/download.html#3.4.2
+wget https://releases.llvm.org/3.4.2/llvm-3.4.2.src.tar.gz
+wget https://releases.llvm.org/3.4.2/cfe-3.4.2.src.tar.gz
+wget https://releases.llvm.org/3.4/compiler-rt-3.4.src.tar.gz
+wget https://releases.llvm.org/3.4.2/libcxx-3.4.2.src.tar.gz
+wget https://releases.llvm.org/3.4/test-suite-3.4.src.tar.gz
+tar xvzf llvm-3.4.2.src.tar.gz
+tar xvzf cfe-3.4.2.src.tar.gz
+tar xvzf compiler-rt-3.4.src.tar.gz
+tar xvzf libcxx-3.4.2.src.tar.gz
+tar xvzf test-suite-3.4.src.tar.gz
+mv llvm-3.4.2.src llvm
+mv cfe-3.4.2.src llvm/tools/clang
+mv compiler-rt-3.4 llvm/projects/compiler-rt
+mv libcxx-3.4.2.src llvm/projects/libcxx
+mv test-suite-3.4 llvm/projects/test-suite
 
-rm -rf llvm/.svn
-rm -rf llvm/tools/clang/.svn
-rm -rf llvm/projects/compiler-rt/.svn
-rm -rf llvm/projects/libcxx/.svn
-rm -rf llvm/projects/test-suite/.svn
+# svn repo no longer accesible
+# svn co https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_342/final llvm
+# svn co https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_342/final llvm/tools/clang
+# svn co https://llvm.org/svn/llvm-project/compiler-rt/tags/RELEASE_342/final llvm/projects/compiler-rt
+# svn co https://llvm.org/svn/llvm-project/libcxx/tags/RELEASE_342/final llvm/projects/libcxx
+# svn co https://llvm.org/svn/llvm-project/test-suite/tags/RELEASE_342/final/ llvm/projects/test-suite
+
+# rm -rf llvm/.svn
+# rm -rf llvm/tools/clang/.svn
+# rm -rf llvm/projects/compiler-rt/.svn
+# rm -rf llvm/projects/libcxx/.svn
+# rm -rf llvm/projects/test-suite/.svn
 
 cd llvm
 ./configure --enable-optimized --disable-assertions --enable-targets=host --with-python="/usr/bin/python2"

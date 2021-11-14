@@ -10,14 +10,8 @@ If an assertion is violated in any of the possible execution paths of the P4 pro
 
 ## Setup
 
-The following automated options are available to setup an environment for assert-p4:
-
 * Bash script to install dependencies on Ubuntu 16.04
 * Virtual machine setup using Vagrant
-
-Please note that both setup methods will take a while to finish.
-
-Be mindful that the setup script was not tested on different OS versions.
 
 ### Dependencies
 
@@ -58,7 +52,8 @@ The binaries for all required softwares will be available in `$PATH`.
 
 ## Running assert-p4
 
-Running assert-p4 consists of:
+Pipeline:
+
 1. Generating the JSON representation of the P4 software through `p4c-bm2-ss`
 2. Translating the JSON file into a C model with `python src/P4_to_C.py`
 3. Compiling the C model into LLVM bytecode with `clang`
@@ -142,6 +137,13 @@ The currently unsupported features are:
 * extern elements
 
 ## Contact information
+
+Related papers:
+
+* [Uncovering Bugs in P4 Programs with Assertion-based Verification, SOSR 2018](https://klevchen.ece.illinois.edu/pubs/assertp4-sosr18.pdf), older code repos:
+	* https://github.com/LucasMFreire/assert-p4
+	* https://github.com/ufrgs-networks-group/assert-p4
+* [Verification of P4 Programs in Feasible Time using Assertions, CoNEXT 2018](https://marinho-barcellos.github.io/publication/2018-conext-neves/2018-conext-neves.pdf)
 
 Please feel free to contact us should any questions arise. Your feedback is greatly appreciated.
 

@@ -17,22 +17,6 @@ Huynh Tu Dang, Marco Canini, Fernando Pedone, and Robert Soulé. 2016. Paxos Mad
 
 <sup>2</sup>At the `reset_instance` action.
 
-### Verifying NetPaxos Leader
-
-From the root directory of `assert-p4`:
-
-```
-bash assert-p4.sh experiments/case_studies/paxos/p4-16/p4src/leader.p4
-```
-
-From inside this folder:
-```
-p4c-bm2-ss p4-16/p4src/leader.p4 --toJSON leader.json
-python src/P4_to_C.py leader.json 
-clang -emit-llvm -g -c leader.c
-klee --search=dfs --no-output --optimize leader.bc
-```
-
 #### Expected output
 
 ```

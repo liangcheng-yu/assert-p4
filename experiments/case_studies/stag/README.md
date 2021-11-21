@@ -12,23 +12,6 @@ George Varghese, Nuno Lopes, Nikolaj Bjorner, Andrey Rybalchenko, Nick McKeown, 
 
 <sup>1</sup>The ingress port is assigned to a color A while the IPv4 destination address is assigned to a color B
 
-
-### Verifying Stag
-
-From the root directory of `assert-p4`:
-
-```
-bash assert-p4.sh experiments/case_studies/stag/stag.p4
-```
-
-From inside this folder:
-```
-p4c-bm2-ss stag.p4 --toJSON stag.json
-python src/P4_to_C.py stag.json 
-clang -emit-llvm -g -c stag.c
-klee --search=dfs --no-output --optimize stag.bc
-```
-
 #### Expected output
 
 ```

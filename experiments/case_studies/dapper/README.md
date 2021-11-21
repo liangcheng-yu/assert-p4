@@ -17,22 +17,6 @@ Mojgan Ghasemi, Theophilus Benson, and Jennifer Rexford. 2017. Dapper: Data Plan
 
 <sup>2</sup>There is a similar `constant` assertion for all TCP fields. For brevity, these are omitted in this table.
 
-### Verifying Dapper
-
-From the root directory of `assert-p4`:
-
-```
-bash assert-p4.sh experiments/case_studies/dapper/dapper.p4
-```
-
-From inside this folder:
-```
-p4c-bm2-ss dapper.p4 --toJSON dapper.json
-python src/P4_to_C.py dapper.json 
-clang -emit-llvm -g -c dapper.c
-klee --search=dfs --no-output --optimize dapper.bc
-```
-
 #### Expected output
 
 ```
